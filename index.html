@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>-Dashboard Sprint -</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>🏃 Dashboard Sprint 30m</h1>
+        <p class="subtitle">- Suivi biomécanique hebdomadaire groupe épreuve combiné -</p>
+    </header>
+
+    <nav>
+        <button class="nav-btn active" data-page="athlete">👤 Suivi Athlète</button>
+        <button class="nav-btn" data-page="groupe">👥 Vue Groupe</button>
+    </nav>
+
+    <main>
+        <!-- Page Athlète -->
+        <section id="page-athlete" class="page active">
+            <div class="controls">
+                <label for="athlete-select">Sélectionner un athlète :</label>
+                <select id="athlete-select">
+                    <option value="">Chargement...</option>
+                </select>
+                <button id="refresh-btn" title="Actualiser les données">🔄 Actualiser</button>
+            </div>
+
+            <!-- Cartes résumé F0, V0, Temps 30m -->
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Dernière valeur de F0</h3>
+                    <div class="value-container">
+                        <div class="value" id="f0-value">--</div>
+                        <div class="z-score" id="f0-zscore">Z: --</div>
+                    </div>
+                    <div class="unit">N/Kg</div>
+                    <div class="variation" id="f0-variation">--</div>
+                    <div class="ranking" id="f0-ranking">
+                        Last: --/-- | Best: --/--
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Dernière valeur de V0</h3>
+                    <div class="value-container">
+                        <div class="value" id="v0-value">--</div>
+                        <div class="z-score" id="v0-zscore">Z: --</div>
+                    </div>
+                    <div class="unit">m/s</div>
+                    <div class="variation" id="v0-variation">--</div>
+                    <div class="ranking" id="v0-ranking">
+                        Last: --/-- | Best: --/--
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Temps 30m</h3>
+                    <div class="value-container">
+                        <div class="value" id="time-value">--</div>
+                        <div class="z-score" id="time-zscore">Z: --</div>
+                    </div>
+                    <div class="unit">secondes</div>
+                    <div class="variation" id="time-variation">--</div>
+                    <div class="comparison" id="time-comparison">--</div>
+                    <div class="ranking" id="time-ranking">
+                        Last: --/-- | Best: --/--
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphiques F0 et V0 -->
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <div class="chart-header">
+                        <h3>📈 Évolution hebdomadaire de F0 (Force)</h3>
+                        <button class="reset-zoom-btn" onclick="resetScale('f0')">🔄 Réinitialiser</button>
+                    </div>
+                    <div class="scale-controls">
+                        <div class="scale-control">
+                            <label>Semaines affichées:</label>
+                            <input type="range" id="weeks-f0" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('f0')">
+                            <span id="weeks-f0-value">10</span>
+                        </div>
+                        <div class="scale-control">
+                            <label>Échelle Y (±ET):</label>
+                            <input type="range" id="scale-y-f0" min="1" max="3" step="0.1" value="1.5" oninput="updateYScale('f0')">
+                            <span id="scale-y-f0-value">±1.5</span>
+                        </div>
+                    </div>
+                    <div class="chart-container-inner">
+                        <canvas id="chart-f0"></canvas>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <div class="chart-header">
+                        <h3>📈 Évolution hebdomadaire de V0 (Vitesse)</h3>
+                        <button class="reset-zoom-btn" onclick="resetScale('v0')">🔄 Réinitialiser</button>
+                    </div>
+                    <div class="scale-controls">
+                        <div class="scale-control">
+                            <label>Semaines affichées:</label>
+                            <input type="range" id="weeks-v0" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('v0')">
+                            <span id="weeks-v0-value">10</span>
+                        </div>
+                        <div class="scale-control">
+                            <label>Échelle Y (±ET):</label>
+                            <input type="range" id="scale-y-v0" min="1" max="3" step="0.1" value="1.5" oninput="updateYScale('v0')">
+                            <span id="scale-y-v0-value">±1.5</span>
+                        </div>
+                    </div>
+                    <div class="chart-container-inner">
+                        <canvas id="chart-v0"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bouton tableau détaillé -->
+            <div class="table-section">
+                <button id="toggle-table" class="btn-table">📊 Afficher tous les tests</button>
+                <div id="table-container" class="hidden">
+                    <h3>Historique complet des tests</h3>
+                    <div class="table-scroll">
+                        <table id="athlete-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page Groupe -->
+        <section id="page-groupe" class="page">
+            <h2>Vue d'ensemble du groupe</h2>
+
+            <div class="group-controls">
+                <label for="date-select">Sélectionner une date :</label>
+                <select id="date-select">
+                    <option value="">Chargement...</option>
+                </select>
+            </div>
+
+            <!-- Tendances du groupe -->
+            <div class="group-stats">
+                <div class="stat-card">
+                    <h3>F0 moyen du groupe</h3>
+                    <div class="value" id="group-f0">--</div>
+                    <div class="trend" id="trend-f0">--</div>
+                </div>
+                <div class="stat-card">
+                    <h3>V0 moyen du groupe</h3>
+                    <div class="value" id="group-v0">--</div>
+                    <div class="trend" id="trend-v0">--</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Temps 30m moyen</h3>
+                    <div class="value" id="group-time">--</div>
+                    <div class="trend" id="trend-time">--</div>
+                </div>
+            </div>
+
+            <!-- Graphique évolution groupe -->
+            <div class="chart-wrapper full-width">
+                <div class="chart-header">
+                    <h3>📈 Évolution des moyennes du groupe (F0 et V0)</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group')">🔄 Réinitialiser</button>
+                </div>
+                <div class="scale-controls">
+                    <div class="scale-control">
+                        <label>Semaines affichées:</label>
+                        <input type="range" id="weeks-group" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group')">
+                        <span id="weeks-group-value">10</span>
+                    </div>
+                </div>
+                <div class="chart-container-inner">
+                    <canvas id="chart-group"></canvas>
+                </div>
+            </div>
+
+            <!-- Graphique puissance moyenne -->
+            <div class="chart-wrapper full-width">
+                <div class="chart-header">
+                    <h3>📈 Évolution de la puissance moyenne du groupe</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-power')">🔄 Réinitialiser</button>
+                </div>
+                <div class="scale-controls">
+                    <div class="scale-control">
+                        <label>Semaines affichées:</label>
+                        <input type="range" id="weeks-group-power" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group-power')">
+                        <span id="weeks-group-power-value">10</span>
+                    </div>
+                </div>
+                <div class="chart-container-inner">
+                    <canvas id="chart-group-power"></canvas>
+                </div>
+            </div>
+
+            <!-- Graphique temps 30m moyen -->
+            <div class="chart-wrapper full-width">
+                <div class="chart-header">
+                    <h3>📈 Évolution du temps 30m moyen du groupe</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-time')">🔄 Réinitialiser</button>
+                </div>
+                <div class="scale-controls">
+                    <div class="scale-control">
+                        <label>Semaines affichées:</label>
+                        <input type="range" id="weeks-group-time" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group-time')">
+                        <span id="weeks-group-time-value">10</span>
+                    </div>
+                </div>
+                <div class="chart-container-inner">
+                    <canvas id="chart-group-time"></canvas>
+                </div>
+            </div>
+
+            <!-- Tableau comparatif -->
+            <div class="group-table-section">
+                <h3>Comparaison des athlètes (dernière semaine)</h3>
+                <div class="table-scroll">
+                    <table id="group-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Dashboard Sprint - Données actualisées depuis Google Sheets</p>
+        <p id="last-update">Dernière mise à jour : --</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

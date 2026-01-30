@@ -228,12 +228,7 @@ function setupEventListeners() {
         }
     });
 
-    // Sélection date groupe
-    document.getElementById('date-select').addEventListener('change', (e) => {
-        if (e.target.value) {
-            updateGroupTable(e.target.value);
-        }
-    });
+    // Date selector removed - table now shows latest date automatically
 
     // Bouton refresh
     document.getElementById('refresh-btn').addEventListener('click', loadData);
@@ -402,23 +397,14 @@ function populateAthleteSelect() {
     });
 }
 
-// Remplir le sélecteur de dates
+// Automatically get the latest date for group table
 function populateDateSelect() {
-    const select = document.getElementById('date-select');
     const dates = [...new Set(allData.map(row => row[COLUMNS.DATE]))].sort((a, b) => {
         return parseDate(b) - parseDate(a);
     });
 
-    select.innerHTML = '<option value="">-- Choisir une date --</option>';
-    dates.forEach(date => {
-        const option = document.createElement('option');
-        option.value = date;
-        option.textContent = formatDate(date);
-        select.appendChild(option);
-    });
-
     if (dates.length > 0) {
-        select.value = dates[0];
+        updateGroupTable(dates[0]);
     }
 }
 
@@ -904,10 +890,8 @@ function updateGroupView() {
     updateGroupPowerChart();
     updateGroupTimeChart();
 
-    const dateSelect = document.getElementById('date-select');
-    if (dateSelect.value) {
-        updateGroupTable(dateSelect.value);
-    }
+    // Automatically show latest date in table
+    populateDateSelect();
 }
 
 // Mettre à jour les stats groupe

@@ -262,8 +262,8 @@ function setupEventListeners() {
         const btn = document.getElementById('toggle-table');
         container.classList.toggle('hidden');
         btn.textContent = container.classList.contains('hidden')
-            ? '📊 Afficher tous les tests'
-            : '📊 Masquer les tests';
+            ? 'Afficher tous les tests'
+            : 'Masquer les tests';
     });
 
     // Exploration page event listeners

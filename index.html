@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>-Dashboard Sprint -</title>
+    <title>Dashboard Sprint 30m | Suivi Biomécanique</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
-        <h1>🏃 Dashboard Sprint 30m</h1>
-        <p class="subtitle">- Suivi biomécanique hebdomadaire groupe épreuve combiné -</p>
+        <h1>Dashboard Sprint 30m</h1>
+        <p class="subtitle">Suivi biomécanique hebdomadaire · Groupe Épreuves Combinées</p>
     </header>
 
     <nav>
-        <button class="nav-btn active" data-page="athlete">👤 Suivi Athlète</button>
-        <button class="nav-btn" data-page="groupe">👥 Vue Groupe</button>
-        <button class="nav-btn" data-page="exploration">🔬 Exploration</button>
+        <button class="nav-btn active" data-page="athlete">Suivi Athlète</button>
+        <button class="nav-btn" data-page="groupe">Vue Groupe</button>
+        <button class="nav-btn" data-page="exploration">Exploration</button>
     </nav>
 
     <main>
@@ -28,7 +31,7 @@
                 <select id="athlete-select">
                     <option value="">Chargement...</option>
                 </select>
-                <button id="refresh-btn" title="Actualiser les données">🔄 Actualiser</button>
+                <button id="refresh-btn" title="Actualiser les données">Actualiser</button>
             </div>
 
             <!-- Cartes résumé F0, V0, Temps 30m -->
@@ -96,8 +99,8 @@
             <div class="charts-container">
                 <div class="chart-wrapper">
                     <div class="chart-header">
-                        <h3>📈 Évolution hebdomadaire de F0 (Force)</h3>
-                        <button class="reset-zoom-btn" onclick="resetScale('f0')">🔄 Réinitialiser</button>
+                        <h3>Évolution hebdomadaire de F0 (Force)</h3>
+                        <button class="reset-zoom-btn" onclick="resetScale('f0')">Réinitialiser</button>
                     </div>
                     <div class="scale-controls">
                         <div class="scale-control">
@@ -117,8 +120,8 @@
                 </div>
                 <div class="chart-wrapper">
                     <div class="chart-header">
-                        <h3>📈 Évolution hebdomadaire de V0 (Vitesse)</h3>
-                        <button class="reset-zoom-btn" onclick="resetScale('v0')">🔄 Réinitialiser</button>
+                        <h3>Évolution hebdomadaire de V0 (Vitesse)</h3>
+                        <button class="reset-zoom-btn" onclick="resetScale('v0')">Réinitialiser</button>
                     </div>
                     <div class="scale-controls">
                         <div class="scale-control">
@@ -140,7 +143,7 @@
 
             <!-- Bouton tableau détaillé -->
             <div class="table-section">
-                <button id="toggle-table" class="btn-table">📊 Afficher tous les tests</button>
+                <button id="toggle-table" class="btn-table">Afficher tous les tests</button>
                 <div id="table-container" class="hidden">
                     <h3>Historique complet des tests</h3>
                     <div class="table-scroll">
@@ -179,8 +182,8 @@
             <!-- Graphique évolution groupe -->
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
-                    <h3>📈 Évolution des moyennes du groupe (F0 et V0)</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group')">🔄 Réinitialiser</button>
+                    <h3>Évolution des moyennes du groupe (F0 et V0)</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
                     <div class="scale-control">
@@ -197,8 +200,8 @@
             <!-- Graphique puissance moyenne -->
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
-                    <h3>📈 Évolution de la puissance moyenne du groupe</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-power')">🔄 Réinitialiser</button>
+                    <h3>Évolution de la puissance moyenne du groupe</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-power')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
                     <div class="scale-control">
@@ -215,8 +218,8 @@
             <!-- Graphique temps 30m moyen -->
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
-                    <h3>📈 Évolution du temps 30m moyen du groupe</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-time')">🔄 Réinitialiser</button>
+                    <h3>Évolution du temps 30m moyen du groupe</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-time')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
                     <div class="scale-control">
@@ -337,7 +340,7 @@
                 <!-- Graphique de corrélation -->
                 <div class="chart-wrapper exploration-chart">
                     <div class="chart-header">
-                        <h3>📊 Corrélation</h3>
+                        <h3>Analyse de Corrélation</h3>
                         <div class="correlation-info">
                             <span id="correlation-equation">y = ax + b</span>
                         </div>
@@ -350,12 +353,12 @@
                 <!-- Graphique quadrant -->
                 <div class="chart-wrapper exploration-chart">
                     <div class="chart-header">
-                        <h3>📍 Quadrant</h3>
+                        <h3>Analyse par Quadrant</h3>
                         <div class="quadrant-info">
-                            <span class="quadrant-label q1">● Q1: Haut-Droite</span>
-                            <span class="quadrant-label q2">● Q2: Haut-Gauche</span>
-                            <span class="quadrant-label q3">● Q3: Bas-Gauche</span>
-                            <span class="quadrant-label q4">● Q4: Bas-Droite</span>
+                            <span class="quadrant-label q1">Q1: Haut-Droite</span>
+                            <span class="quadrant-label q2">Q2: Haut-Gauche</span>
+                            <span class="quadrant-label q3">Q3: Bas-Gauche</span>
+                            <span class="quadrant-label q4">Q4: Bas-Droite</span>
                         </div>
                     </div>
                     <div class="chart-container-inner">
@@ -367,7 +370,7 @@
             <!-- Matrice de corrélation -->
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
-                    <h3>🔥 Matrice de corrélation</h3>
+                    <h3>Matrice de Corrélation</h3>
                     <span class="matrix-hint">Cliquez sur une cellule pour sélectionner les métriques</span>
                 </div>
                 <div class="correlation-matrix-container">

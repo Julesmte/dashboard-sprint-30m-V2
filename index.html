@@ -17,6 +17,7 @@
     <nav>
         <button class="nav-btn active" data-page="athlete">👤 Suivi Athlète</button>
         <button class="nav-btn" data-page="groupe">👥 Vue Groupe</button>
+        <button class="nav-btn" data-page="exploration">🔬 Exploration</button>
     </nav>
 
     <main>
@@ -68,6 +69,26 @@
                     <div class="ranking" id="time-ranking">
                         Last: --/-- | Best: --/--
                     </div>
+                </div>
+            </div>
+
+            <!-- Radar Chart de comparaison -->
+            <div class="radar-section">
+                <div class="radar-header">
+                    <h3>Profil Biomécanique</h3>
+                    <div class="compare-controls">
+                        <label for="compare-select">Comparer avec :</label>
+                        <select id="compare-select">
+                            <option value="">-- Aucune comparaison --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="radar-container">
+                    <canvas id="chart-radar"></canvas>
+                </div>
+                <div class="radar-legend">
+                    <span class="legend-item athlete"><span class="color-box"></span> Athlète sélectionné</span>
+                    <span class="legend-item compare"><span class="color-box"></span> Comparaison</span>
                 </div>
             </div>
 
@@ -211,12 +232,156 @@
 
             <!-- Tableau comparatif -->
             <div class="group-table-section">
-                <h3>Comparaison des athlètes (dernière semaine)</h3>
+                <div class="table-header-controls">
+                    <h3>Comparaison des athlètes (dernière semaine)</h3>
+                    <div class="sort-controls">
+                        <label for="sort-metric-select">Trier par :</label>
+                        <select id="sort-metric-select">
+                            <option value="TIME_30M">Temps 30m</option>
+                            <option value="F0_RELATIVE">F0 (N/Kg)</option>
+                            <option value="V0">V0 (m/s)</option>
+                            <option value="P_MAX_RELATIVE">P Max (W/Kg)</option>
+                            <option value="DRF">DRF</option>
+                            <option value="RF_10M">RF 10m</option>
+                            <option value="RF_PEAK">RF Peak</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="table-scroll">
                     <table id="group-table">
                         <thead></thead>
                         <tbody></tbody>
                     </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page Exploration -->
+        <section id="page-exploration" class="page">
+            <h2>Exploration des données</h2>
+
+            <!-- Contrôles globaux -->
+            <div class="exploration-controls">
+                <div class="control-group date-range-group">
+                    <label>Période :</label>
+                    <div class="date-range-inputs">
+                        <select id="exploration-date-start">
+                            <option value="">Du...</option>
+                        </select>
+                        <span class="date-separator">→</span>
+                        <select id="exploration-date-end">
+                            <option value="">Au...</option>
+                        </select>
+                        <button id="reset-date-range" class="reset-date-btn" title="Réinitialiser la période">✕</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="metric-x">Axe X :</label>
+                    <select id="metric-x">
+                        <option value="F0_RELATIVE">F0 (N/Kg)</option>
+                        <option value="V0">V0 (m/s)</option>
+                        <option value="TIME_30M">Temps 30m (s)</option>
+                        <option value="P_MAX_RELATIVE">P Max (W/Kg)</option>
+                        <option value="DRF">DRF</option>
+                        <option value="RF_10M">RF 10m</option>
+                        <option value="RF_PEAK">RF Peak</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="metric-y">Axe Y :</label>
+                    <select id="metric-y">
+                        <option value="TIME_30M">Temps 30m (s)</option>
+                        <option value="F0_RELATIVE">F0 (N/Kg)</option>
+                        <option value="V0">V0 (m/s)</option>
+                        <option value="P_MAX_RELATIVE">P Max (W/Kg)</option>
+                        <option value="DRF">DRF</option>
+                        <option value="RF_10M">RF 10m</option>
+                        <option value="RF_PEAK">RF Peak</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Statistiques descriptives -->
+            <div class="stats-summary">
+                <div class="stat-box" id="stats-x">
+                    <h4>Statistiques Axe X</h4>
+                    <div class="stat-grid">
+                        <span class="stat-label">Moyenne:</span><span class="stat-value" id="stat-x-mean">--</span>
+                        <span class="stat-label">Écart-type:</span><span class="stat-value" id="stat-x-std">--</span>
+                        <span class="stat-label">Min:</span><span class="stat-value" id="stat-x-min">--</span>
+                        <span class="stat-label">Max:</span><span class="stat-value" id="stat-x-max">--</span>
+                    </div>
+                </div>
+                <div class="stat-box" id="stats-y">
+                    <h4>Statistiques Axe Y</h4>
+                    <div class="stat-grid">
+                        <span class="stat-label">Moyenne:</span><span class="stat-value" id="stat-y-mean">--</span>
+                        <span class="stat-label">Écart-type:</span><span class="stat-value" id="stat-y-std">--</span>
+                        <span class="stat-label">Min:</span><span class="stat-value" id="stat-y-min">--</span>
+                        <span class="stat-label">Max:</span><span class="stat-value" id="stat-y-max">--</span>
+                    </div>
+                </div>
+                <div class="stat-box" id="stats-correlation">
+                    <h4>Corrélation</h4>
+                    <div class="stat-grid correlation-stats">
+                        <span class="stat-label">R² :</span><span class="stat-value highlight" id="stat-r2">--</span>
+                        <span class="stat-label">R (Pearson) :</span><span class="stat-value" id="stat-r">--</span>
+                        <span class="stat-label">P-value :</span><span class="stat-value" id="stat-pvalue">--</span>
+                        <span class="stat-label">N points :</span><span class="stat-value" id="stat-n">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graphiques côte à côte -->
+            <div class="exploration-charts">
+                <!-- Graphique de corrélation -->
+                <div class="chart-wrapper exploration-chart">
+                    <div class="chart-header">
+                        <h3>📊 Corrélation</h3>
+                        <div class="correlation-info">
+                            <span id="correlation-equation">y = ax + b</span>
+                        </div>
+                    </div>
+                    <div class="chart-container-inner">
+                        <canvas id="chart-correlation"></canvas>
+                    </div>
+                </div>
+
+                <!-- Graphique quadrant -->
+                <div class="chart-wrapper exploration-chart">
+                    <div class="chart-header">
+                        <h3>📍 Quadrant</h3>
+                        <div class="quadrant-info">
+                            <span class="quadrant-label q1">● Q1: Haut-Droite</span>
+                            <span class="quadrant-label q2">● Q2: Haut-Gauche</span>
+                            <span class="quadrant-label q3">● Q3: Bas-Gauche</span>
+                            <span class="quadrant-label q4">● Q4: Bas-Droite</span>
+                        </div>
+                    </div>
+                    <div class="chart-container-inner">
+                        <canvas id="chart-quadrant"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matrice de corrélation -->
+            <div class="chart-wrapper full-width">
+                <div class="chart-header">
+                    <h3>🔥 Matrice de corrélation</h3>
+                    <span class="matrix-hint">Cliquez sur une cellule pour sélectionner les métriques</span>
+                </div>
+                <div class="correlation-matrix-container">
+                    <div id="correlation-matrix"></div>
+                </div>
+                <div class="matrix-legend">
+                    <span class="legend-gradient">
+                        <span class="gradient-bar"></span>
+                        <span class="gradient-labels">
+                            <span>-1 (négative)</span>
+                            <span>0</span>
+                            <span>+1 (positive)</span>
+                        </span>
+                    </span>
                 </div>
             </div>
         </section>

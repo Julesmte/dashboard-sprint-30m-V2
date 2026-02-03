@@ -113,6 +113,11 @@
                             <input type="range" id="scale-y-f0" min="1" max="3" step="0.1" value="1.5" oninput="updateYScale('f0')">
                             <span id="scale-y-f0-value">±1.5</span>
                         </div>
+                        <div class="scale-control">
+                            <label>Tendance (sem.):</label>
+                            <input type="range" id="trend-weeks-f0" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('f0')">
+                            <span id="trend-weeks-f0-value">10</span>
+                        </div>
                     </div>
                     <div class="chart-container-inner">
                         <canvas id="chart-f0"></canvas>
@@ -133,6 +138,11 @@
                             <label>Échelle Y (±ET):</label>
                             <input type="range" id="scale-y-v0" min="1" max="3" step="0.1" value="1.5" oninput="updateYScale('v0')">
                             <span id="scale-y-v0-value">±1.5</span>
+                        </div>
+                        <div class="scale-control">
+                            <label>Tendance (sem.):</label>
+                            <input type="range" id="trend-weeks-v0" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('v0')">
+                            <span id="trend-weeks-v0-value">10</span>
                         </div>
                     </div>
                     <div class="chart-container-inner">
@@ -179,21 +189,49 @@
                 </div>
             </div>
 
-            <!-- Graphique évolution groupe -->
+            <!-- Graphique évolution F0 groupe -->
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
-                    <h3>Évolution des moyennes du groupe (F0 et V0)</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group')">Réinitialiser</button>
+                    <h3>Évolution de la force moyenne du groupe (F0)</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-f0')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
                     <div class="scale-control">
                         <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group')">
-                        <span id="weeks-group-value">10</span>
+                        <input type="range" id="weeks-group-f0" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-f0')">
+                        <span id="weeks-group-f0-value">10</span>
+                    </div>
+                    <div class="scale-control">
+                        <label>Tendance (sem.):</label>
+                        <input type="range" id="trend-weeks-group-f0" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('group-f0')">
+                        <span id="trend-weeks-group-f0-value">10</span>
                     </div>
                 </div>
                 <div class="chart-container-inner">
-                    <canvas id="chart-group"></canvas>
+                    <canvas id="chart-group-f0"></canvas>
+                </div>
+            </div>
+
+            <!-- Graphique évolution V0 groupe -->
+            <div class="chart-wrapper full-width">
+                <div class="chart-header">
+                    <h3>Évolution de la vitesse moyenne du groupe (V0)</h3>
+                    <button class="reset-zoom-btn" onclick="resetScale('group-v0')">Réinitialiser</button>
+                </div>
+                <div class="scale-controls">
+                    <div class="scale-control">
+                        <label>Semaines affichées:</label>
+                        <input type="range" id="weeks-group-v0" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-v0')">
+                        <span id="weeks-group-v0-value">10</span>
+                    </div>
+                    <div class="scale-control">
+                        <label>Tendance (sem.):</label>
+                        <input type="range" id="trend-weeks-group-v0" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('group-v0')">
+                        <span id="trend-weeks-group-v0-value">10</span>
+                    </div>
+                </div>
+                <div class="chart-container-inner">
+                    <canvas id="chart-group-v0"></canvas>
                 </div>
             </div>
 
@@ -206,8 +244,13 @@
                 <div class="scale-controls">
                     <div class="scale-control">
                         <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-power" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group-power')">
+                        <input type="range" id="weeks-group-power" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-power')">
                         <span id="weeks-group-power-value">10</span>
+                    </div>
+                    <div class="scale-control">
+                        <label>Tendance (sem.):</label>
+                        <input type="range" id="trend-weeks-group-power" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('group-power')">
+                        <span id="trend-weeks-group-power-value">10</span>
                     </div>
                 </div>
                 <div class="chart-container-inner">
@@ -224,8 +267,13 @@
                 <div class="scale-controls">
                     <div class="scale-control">
                         <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-time" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('group-time')">
+                        <input type="range" id="weeks-group-time" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-time')">
                         <span id="weeks-group-time-value">10</span>
+                    </div>
+                    <div class="scale-control">
+                        <label>Tendance (sem.):</label>
+                        <input type="range" id="trend-weeks-group-time" min="3" max="20" step="1" value="10" oninput="updateTrendWeeks('group-time')">
+                        <span id="trend-weeks-group-time-value">10</span>
                     </div>
                 </div>
                 <div class="chart-container-inner">
@@ -283,6 +331,11 @@
                     <select id="metric-x">
                         <option value="F0_RELATIVE">F0 (N/Kg)</option>
                         <option value="V0">V0 (m/s)</option>
+                        <option value="TIME_5M">Temps 5m (s)</option>
+                        <option value="TIME_10M">Temps 10m (s)</option>
+                        <option value="TIME_15M">Temps 15m (s)</option>
+                        <option value="TIME_20M">Temps 20m (s)</option>
+                        <option value="TIME_25M">Temps 25m (s)</option>
                         <option value="TIME_30M">Temps 30m (s)</option>
                         <option value="P_MAX_RELATIVE">P Max (W/Kg)</option>
                         <option value="DRF">DRF</option>
@@ -294,6 +347,11 @@
                     <label for="metric-y">Axe Y :</label>
                     <select id="metric-y">
                         <option value="TIME_30M">Temps 30m (s)</option>
+                        <option value="TIME_5M">Temps 5m (s)</option>
+                        <option value="TIME_10M">Temps 10m (s)</option>
+                        <option value="TIME_15M">Temps 15m (s)</option>
+                        <option value="TIME_20M">Temps 20m (s)</option>
+                        <option value="TIME_25M">Temps 25m (s)</option>
                         <option value="F0_RELATIVE">F0 (N/Kg)</option>
                         <option value="V0">V0 (m/s)</option>
                         <option value="P_MAX_RELATIVE">P Max (W/Kg)</option>

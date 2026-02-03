@@ -39,7 +39,8 @@ let allData = [];
 /** Instances des graphiques Chart.js */
 let chartF0 = null;
 let chartV0 = null;
-let chartGroup = null;
+let chartGroupF0 = null;
+let chartGroupV0 = null;
 let chartGroupPower = null;
 let chartGroupTime = null;
 let chartRadar = null;
@@ -53,10 +54,11 @@ let currentAthlete = null;
 let chartF0Stats = { mean: 0, std: 0, dates: [] };
 let chartV0Stats = { mean: 0, std: 0, dates: [] };
 
-/** Statistiques des graphiques de groupe (dates pour le zoom temporel) */
-let chartGroupStats = { dates: [] };
-let chartGroupPowerStats = { dates: [] };
-let chartGroupTimeStats = { dates: [] };
+/** Statistiques des graphiques de groupe (dates et données pour le zoom temporel et tendance) */
+let chartGroupF0Stats = { dates: [], parsedDates: [], avgF0: [] };
+let chartGroupV0Stats = { dates: [], parsedDates: [], avgV0: [] };
+let chartGroupPowerStats = { dates: [], parsedDates: [], avgPower: [] };
+let chartGroupTimeStats = { dates: [], parsedDates: [], avgTime: [] };
 
 // Plugin pour ajouter un fond gris clair à la légende
 const legendBackgroundPlugin = {
@@ -140,9 +142,12 @@ function updateWeeksScale(chartType) {
     } else if (chartType === 'v0') {
         chart = chartV0;
         stats = chartV0Stats;
-    } else if (chartType === 'group') {
-        chart = chartGroup;
-        stats = chartGroupStats;
+    } else if (chartType === 'group-f0') {
+        chart = chartGroupF0;
+        stats = chartGroupF0Stats;
+    } else if (chartType === 'group-v0') {
+        chart = chartGroupV0;
+        stats = chartGroupV0Stats;
     } else if (chartType === 'group-power') {
         chart = chartGroupPower;
         stats = chartGroupPowerStats;
@@ -193,6 +198,11 @@ function updateYScale(chartType) {
 const COLUMNS = {
     DATE: 'Date',
     NAME: 'Name',
+    TIME_5M: '5m',
+    TIME_10M: '10m',
+    TIME_15M: '15m',
+    TIME_20M: '20m',
+    TIME_25M: '25m',
     TIME_30M: '30m',
     F0_RELATIVE: 'F0 (N/Kg)',
     V0: 'V (0)',
@@ -667,10 +677,16 @@ function updateChartF0(athleteData) {
 
     if (chartF0) chartF0.destroy();
 
-    // Stocker les stats pour les curseurs d'échelle
+    // Stocker les stats pour les curseurs d'échelle et tendance
     chartF0Stats.mean = stats.mean;
     chartF0Stats.std = stats.std;
     chartF0Stats.dates = dates.map(d => d.getTime());
+    chartF0Stats.parsedDates = dates;
+    chartF0Stats.values = f0Values;
+
+    // Calculer la tendance
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-f0')?.value || 10);
+    const trendData = calculateSingleTrendData(dates, f0Values, trendWeeks);
 
     chartF0 = new Chart(ctx, {
         type: 'line',
@@ -734,10 +750,21 @@ function updateChartF0(athleteData) {
                     pointBorderWidth: 3,
                     showLine: false,
                     fill: false
+                },
+                {
+                    label: 'Tendance',
+                    data: trendData,
+                    borderColor: 'rgba(120, 120, 120, 0.7)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [8, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    spanGaps: false
                 }
             ]
         },
-        options: getChartOptions('F0 (N/Kg)', stats)
+        options: getChartOptions('F0 (N/Kg)', stats, dates)
     });
 
     // Calculer le nombre total de semaines disponibles
@@ -747,14 +774,9 @@ function updateChartF0(athleteData) {
     const weeksSlider = document.getElementById('weeks-f0');
     const displayWeeks = Math.min(50, totalWeeks);
     weeksSlider.max = displayWeeks;
-    weeksSlider.value = displayWeeks;
-    document.getElementById('weeks-f0-value').textContent = displayWeeks.toString();
 
-    document.getElementById('scale-y-f0').value = 1.5;
-    document.getElementById('scale-y-f0-value').textContent = '±1.5';
-
-    // Appliquer uniquement l'échelle Y (pas l'échelle X pour voir toutes les données)
-    updateYScale('f0');
+    // Appliquer l'échelle par défaut (10 semaines, ±1.5 ET) comme lors d'un reset
+    resetScale('f0');
 }
 
 // Mettre à jour le graphique V0
@@ -770,10 +792,16 @@ function updateChartV0(athleteData) {
 
     if (chartV0) chartV0.destroy();
 
-    // Stocker les stats pour les curseurs d'échelle
+    // Stocker les stats pour les curseurs d'échelle et tendance
     chartV0Stats.mean = stats.mean;
     chartV0Stats.std = stats.std;
     chartV0Stats.dates = dates.map(d => d.getTime());
+    chartV0Stats.parsedDates = dates;
+    chartV0Stats.values = v0Values;
+
+    // Calculer la tendance
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-v0')?.value || 10);
+    const trendData = calculateSingleTrendData(dates, v0Values, trendWeeks);
 
     chartV0 = new Chart(ctx, {
         type: 'line',
@@ -837,10 +865,21 @@ function updateChartV0(athleteData) {
                     pointBorderWidth: 3,
                     showLine: false,
                     fill: false
+                },
+                {
+                    label: 'Tendance',
+                    data: trendData,
+                    borderColor: 'rgba(120, 120, 120, 0.7)',
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [8, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    spanGaps: false
                 }
             ]
         },
-        options: getChartOptions('V0 (m/s)', stats)
+        options: getChartOptions('V0 (m/s)', stats, dates)
     });
 
     // Calculer le nombre total de semaines disponibles
@@ -850,20 +889,24 @@ function updateChartV0(athleteData) {
     const weeksSlider = document.getElementById('weeks-v0');
     const displayWeeks = Math.min(50, totalWeeks);
     weeksSlider.max = displayWeeks;
-    weeksSlider.value = displayWeeks;
-    document.getElementById('weeks-v0-value').textContent = displayWeeks.toString();
 
-    document.getElementById('scale-y-v0').value = 1.5;
-    document.getElementById('scale-y-v0-value').textContent = '±1.5';
-
-    // Appliquer uniquement l'échelle Y (pas l'échelle X pour voir toutes les données)
-    updateYScale('v0');
+    // Appliquer l'échelle par défaut (10 semaines, ±1.5 ET) comme lors d'un reset
+    resetScale('v0');
 }
 
 // Options communes pour les graphiques
-function getChartOptions(yLabel, stats) {
-    const yMin = stats ? stats.mean - 1.0 * stats.std : undefined;
-    const yMax = stats ? stats.mean + 1.0 * stats.std : undefined;
+function getChartOptions(yLabel, stats, dates) {
+    const yMin = stats ? stats.mean - 1.5 * stats.std : undefined;
+    const yMax = stats ? stats.mean + 1.5 * stats.std : undefined;
+
+    // Calculer les limites X pour afficher 10 semaines par défaut
+    let xMin, xMax;
+    if (dates && dates.length > 0) {
+        const timestamps = dates.map(d => d.getTime());
+        xMax = Math.max(...timestamps);
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+        xMin = xMax - (10 * msPerWeek);
+    }
 
     return {
         responsive: true,
@@ -914,7 +957,9 @@ function getChartOptions(yLabel, stats) {
                     unit: 'week',
                     displayFormats: { week: 'dd MMM' }
                 },
-                title: { display: true, text: 'Date' }
+                title: { display: true, text: 'Date' },
+                min: xMin,
+                max: xMax
             },
             y: {
                 title: { display: true, text: yLabel },
@@ -1155,7 +1200,8 @@ function updateRadarLegend(compareAthlete) {
 // Mettre à jour la vue groupe
 function updateGroupView() {
     updateGroupStats();
-    updateGroupChart();
+    updateGroupF0Chart();
+    updateGroupV0Chart();
     updateGroupPowerChart();
     updateGroupTimeChart();
 
@@ -1248,49 +1294,35 @@ function calculateLinearRegression(xValues, yValues) {
     return { slope, intercept, predictions };
 }
 
-// Mettre à jour le graphique groupe
-function updateGroupChart() {
-    const ctx = document.getElementById('chart-group').getContext('2d');
+// Mettre à jour le graphique F0 du groupe
+function updateGroupF0Chart() {
+    const ctx = document.getElementById('chart-group-f0').getContext('2d');
 
     const dataByDate = {};
     allData.forEach(row => {
         const date = row[COLUMNS.DATE];
         if (!dataByDate[date]) {
-            dataByDate[date] = { f0: [], v0: [], time: [] };
+            dataByDate[date] = { f0: [] };
         }
         dataByDate[date].f0.push(parseFloat(row[COLUMNS.F0_RELATIVE]));
-        dataByDate[date].v0.push(parseFloat(row[COLUMNS.V0]));
-        dataByDate[date].time.push(parseFloat(row[COLUMNS.TIME_30M]));
     });
 
     const dates = Object.keys(dataByDate).sort((a, b) => parseDate(a) - parseDate(b));
     const parsedDates = dates.map(d => parseDate(d));
     const avgF0 = dates.map(d => average(dataByDate[d].f0));
-    const avgV0 = dates.map(d => average(dataByDate[d].v0));
 
-    // Prendre seulement les 10 dernières semaines pour la tendance
-    const last10Dates = parsedDates.slice(-10);
-    const last10F0 = avgF0.slice(-10);
-    const last10V0 = avgV0.slice(-10);
+    // Stocker les données pour le calcul de tendance dynamique
+    chartGroupF0Stats.parsedDates = parsedDates;
+    chartGroupF0Stats.avgF0 = avgF0;
+    chartGroupF0Stats.dates = parsedDates.map(d => d.getTime());
 
-    // Calculer les lignes de tendance sur les 10 dernières semaines
-    const trendF0 = calculateLinearRegression(last10Dates, last10F0);
-    const trendV0 = calculateLinearRegression(last10Dates, last10V0);
+    // Obtenir le nombre de semaines pour la tendance (défaut: 10)
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-group-f0')?.value || 10);
+    const trendF0Data = calculateSingleTrendData(parsedDates, avgF0, trendWeeks);
 
-    // Créer des tableaux avec null pour les dates hors des 10 dernières semaines
-    const trendF0Data = parsedDates.map((_, i) =>
-        i >= parsedDates.length - 10 ? trendF0.predictions[i - (parsedDates.length - 10)] : null
-    );
-    const trendV0Data = parsedDates.map((_, i) =>
-        i >= parsedDates.length - 10 ? trendV0.predictions[i - (parsedDates.length - 10)] : null
-    );
+    if (chartGroupF0) chartGroupF0.destroy();
 
-    if (chartGroup) chartGroup.destroy();
-
-    // Stocker les dates pour les curseurs d'échelle
-    chartGroupStats.dates = parsedDates.map(d => d.getTime());
-
-    chartGroup = new Chart(ctx, {
+    chartGroupF0 = new Chart(ctx, {
         type: 'line',
         data: {
             labels: parsedDates,
@@ -1304,11 +1336,10 @@ function updateGroupChart() {
                     pointRadius: 6,
                     pointHoverRadius: 8,
                     pointStyle: 'circle',
-                    yAxisID: 'y',
                     showLine: false
                 },
                 {
-                    label: 'Tendance F0 (10 sem.)',
+                    label: 'Tendance',
                     data: trendF0Data,
                     borderColor: '#3498db',
                     backgroundColor: 'transparent',
@@ -1316,31 +1347,6 @@ function updateGroupChart() {
                     borderDash: [10, 5],
                     pointRadius: 0,
                     pointStyle: 'line',
-                    yAxisID: 'y',
-                    spanGaps: false
-                },
-                {
-                    label: 'V0 moyen (m/s)',
-                    data: avgV0,
-                    borderColor: '#e74c3c',
-                    backgroundColor: '#e74c3c',
-                    borderWidth: 0,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
-                    pointStyle: 'circle',
-                    yAxisID: 'y1',
-                    showLine: false
-                },
-                {
-                    label: 'Tendance V0 (10 sem.)',
-                    data: trendV0Data,
-                    borderColor: '#e74c3c',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [10, 5],
-                    pointRadius: 0,
-                    pointStyle: 'line',
-                    yAxisID: 'y1',
                     spanGaps: false
                 }
             ]
@@ -1355,21 +1361,8 @@ function updateGroupChart() {
                     position: 'top',
                     labels: {
                         usePointStyle: true,
-                        pointStyle: 'circle',
                         font: { size: 11 },
-                        padding: 15,
-                        generateLabels: (chart) => {
-                            const datasets = chart.data.datasets;
-                            return datasets.map((dataset, i) => ({
-                                text: dataset.label,
-                                fillStyle: dataset.backgroundColor,
-                                strokeStyle: dataset.borderColor,
-                                lineWidth: dataset.borderWidth,
-                                hidden: !chart.isDatasetVisible(i),
-                                index: i,
-                                pointStyle: dataset.label.includes('Tendance') ? 'line' : 'circle'
-                            }));
-                        }
+                        padding: 15
                     }
                 },
                 tooltip: {
@@ -1387,29 +1380,130 @@ function updateGroupChart() {
                 y: {
                     type: 'linear',
                     display: true,
-                    position: 'left',
-                    title: { display: true, text: 'F0 (N/Kg)' }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: { display: true, text: 'V0 (m/s)' },
-                    grid: { drawOnChartArea: false }
+                    title: { display: true, text: 'F0 moyen (N/Kg)' }
                 }
             }
         }
     });
 
     // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupStats.dates) - Math.min(...chartGroupStats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupF0Stats.dates) - Math.min(...chartGroupF0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
 
     // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-group');
-    const displayWeeks = Math.min(50, totalWeeks); // Augmenter le max à 50
+    const weeksSlider = document.getElementById('weeks-group-f0');
+    const displayWeeks = Math.min(50, totalWeeks);
     weeksSlider.max = displayWeeks;
-    weeksSlider.value = displayWeeks;
-    document.getElementById('weeks-group-value').textContent = displayWeeks.toString();
+
+    // Appliquer 10 semaines par défaut
+    weeksSlider.value = 10;
+    document.getElementById('weeks-group-f0-value').textContent = '10';
+    updateWeeksScale('group-f0');
+}
+
+// Mettre à jour le graphique V0 du groupe
+function updateGroupV0Chart() {
+    const ctx = document.getElementById('chart-group-v0').getContext('2d');
+
+    const dataByDate = {};
+    allData.forEach(row => {
+        const date = row[COLUMNS.DATE];
+        if (!dataByDate[date]) {
+            dataByDate[date] = { v0: [] };
+        }
+        dataByDate[date].v0.push(parseFloat(row[COLUMNS.V0]));
+    });
+
+    const dates = Object.keys(dataByDate).sort((a, b) => parseDate(a) - parseDate(b));
+    const parsedDates = dates.map(d => parseDate(d));
+    const avgV0 = dates.map(d => average(dataByDate[d].v0));
+
+    // Stocker les données pour le calcul de tendance dynamique
+    chartGroupV0Stats.parsedDates = parsedDates;
+    chartGroupV0Stats.avgV0 = avgV0;
+    chartGroupV0Stats.dates = parsedDates.map(d => d.getTime());
+
+    // Obtenir le nombre de semaines pour la tendance (défaut: 10)
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-group-v0')?.value || 10);
+    const trendV0Data = calculateSingleTrendData(parsedDates, avgV0, trendWeeks);
+
+    if (chartGroupV0) chartGroupV0.destroy();
+
+    chartGroupV0 = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: parsedDates,
+            datasets: [
+                {
+                    label: 'V0 moyen (m/s)',
+                    data: avgV0,
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    borderWidth: 0,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointStyle: 'circle',
+                    showLine: false
+                },
+                {
+                    label: 'Tendance',
+                    data: trendV0Data,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    pointStyle: 'line',
+                    spanGaps: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        font: { size: 11 },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => formatDate(items[0].label)
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { unit: 'week', displayFormats: { week: 'dd MMM' } },
+                    title: { display: true, text: 'Date' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    title: { display: true, text: 'V0 moyen (m/s)' }
+                }
+            }
+        }
+    });
+
+    // Calculer le nombre total de semaines disponibles
+    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupV0Stats.dates) - Math.min(...chartGroupV0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+
+    // Mettre à jour le max du slider dynamiquement
+    const weeksSlider = document.getElementById('weeks-group-v0');
+    const displayWeeks = Math.min(50, totalWeeks);
+    weeksSlider.max = displayWeeks;
+
+    // Appliquer 10 semaines par défaut
+    weeksSlider.value = 10;
+    document.getElementById('weeks-group-v0-value').textContent = '10';
+    updateWeeksScale('group-v0');
 }
 
 // Mettre à jour le graphique de puissance moyenne du groupe
@@ -1429,22 +1523,16 @@ function updateGroupPowerChart() {
     const parsedDates = dates.map(d => parseDate(d));
     const avgPower = dates.map(d => average(dataByDate[d].power));
 
-    // Prendre seulement les 10 dernières semaines pour la tendance
-    const last10Dates = parsedDates.slice(-10);
-    const last10Power = avgPower.slice(-10);
+    // Stocker les données pour le calcul de tendance dynamique
+    chartGroupPowerStats.parsedDates = parsedDates;
+    chartGroupPowerStats.avgPower = avgPower;
+    chartGroupPowerStats.dates = parsedDates.map(d => d.getTime());
 
-    // Calculer la ligne de tendance sur les 10 dernières semaines
-    const trendPower = calculateLinearRegression(last10Dates, last10Power);
-
-    // Créer un tableau avec null pour les dates hors des 10 dernières semaines
-    const trendPowerData = parsedDates.map((_, i) =>
-        i >= parsedDates.length - 10 ? trendPower.predictions[i - (parsedDates.length - 10)] : null
-    );
+    // Obtenir le nombre de semaines pour la tendance (défaut: 10)
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-group-power')?.value || 10);
+    const trendPowerData = calculateSingleTrendData(parsedDates, avgPower, trendWeeks);
 
     if (chartGroupPower) chartGroupPower.destroy();
-
-    // Stocker les dates pour les curseurs d'échelle
-    chartGroupPowerStats.dates = parsedDates.map(d => d.getTime());
 
     chartGroupPower = new Chart(ctx, {
         type: 'line',
@@ -1463,7 +1551,7 @@ function updateGroupPowerChart() {
                     showLine: false
                 },
                 {
-                    label: 'Tendance (10 sem.)',
+                    label: 'Tendance',
                     data: trendPowerData,
                     borderColor: '#9b59b6',
                     backgroundColor: 'transparent',
@@ -1506,9 +1594,6 @@ function updateGroupPowerChart() {
                     callbacks: {
                         title: (items) => formatDate(items[0].label),
                         label: (item) => {
-                            if (item.dataset.label.includes('Tendance')) {
-                                return `${item.dataset.label}: ${item.parsed.y.toFixed(2)} W/Kg`;
-                            }
                             return `${item.dataset.label}: ${item.parsed.y.toFixed(2)} W/Kg`;
                         }
                     }
@@ -1536,8 +1621,23 @@ function updateGroupPowerChart() {
     const weeksSlider = document.getElementById('weeks-group-power');
     const displayWeeks = Math.min(50, totalWeeks);
     weeksSlider.max = displayWeeks;
-    weeksSlider.value = displayWeeks;
-    document.getElementById('weeks-group-power-value').textContent = displayWeeks.toString();
+
+    // Appliquer 10 semaines par défaut
+    weeksSlider.value = 10;
+    document.getElementById('weeks-group-power-value').textContent = '10';
+    updateWeeksScale('group-power');
+}
+
+// Calculer les données de tendance pour un seul jeu de données
+function calculateSingleTrendData(parsedDates, avgData, trendWeeks) {
+    const lastNDates = parsedDates.slice(-trendWeeks);
+    const lastNData = avgData.slice(-trendWeeks);
+
+    const trend = calculateLinearRegression(lastNDates, lastNData);
+
+    return parsedDates.map((_, i) =>
+        i >= parsedDates.length - trendWeeks ? trend.predictions[i - (parsedDates.length - trendWeeks)] : null
+    );
 }
 
 // Mettre à jour le graphique de temps 30m moyen du groupe
@@ -1557,22 +1657,16 @@ function updateGroupTimeChart() {
     const parsedDates = dates.map(d => parseDate(d));
     const avgTime = dates.map(d => average(dataByDate[d].time));
 
-    // Prendre seulement les 10 dernières semaines pour la tendance
-    const last10Dates = parsedDates.slice(-10);
-    const last10Time = avgTime.slice(-10);
+    // Stocker les données pour le calcul de tendance dynamique
+    chartGroupTimeStats.parsedDates = parsedDates;
+    chartGroupTimeStats.avgTime = avgTime;
+    chartGroupTimeStats.dates = parsedDates.map(d => d.getTime());
 
-    // Calculer la ligne de tendance sur les 10 dernières semaines
-    const trendTime = calculateLinearRegression(last10Dates, last10Time);
-
-    // Créer un tableau avec null pour les dates hors des 10 dernières semaines
-    const trendTimeData = parsedDates.map((_, i) =>
-        i >= parsedDates.length - 10 ? trendTime.predictions[i - (parsedDates.length - 10)] : null
-    );
+    // Obtenir le nombre de semaines pour la tendance (défaut: 10)
+    const trendWeeks = parseInt(document.getElementById('trend-weeks-group-time')?.value || 10);
+    const trendTimeData = calculateSingleTrendData(parsedDates, avgTime, trendWeeks);
 
     if (chartGroupTime) chartGroupTime.destroy();
-
-    // Stocker les dates pour les curseurs d'échelle
-    chartGroupTimeStats.dates = parsedDates.map(d => d.getTime());
 
     chartGroupTime = new Chart(ctx, {
         type: 'line',
@@ -1591,7 +1685,7 @@ function updateGroupTimeChart() {
                     showLine: false
                 },
                 {
-                    label: 'Tendance (10 sem.)',
+                    label: 'Tendance',
                     data: trendTimeData,
                     borderColor: '#27ae60',
                     backgroundColor: 'transparent',
@@ -1634,9 +1728,6 @@ function updateGroupTimeChart() {
                     callbacks: {
                         title: (items) => formatDate(items[0].label),
                         label: (item) => {
-                            if (item.dataset.label.includes('Tendance')) {
-                                return `${item.dataset.label}: ${item.parsed.y.toFixed(3)} s`;
-                            }
                             return `${item.dataset.label}: ${item.parsed.y.toFixed(3)} s`;
                         }
                     }
@@ -1664,21 +1755,29 @@ function updateGroupTimeChart() {
     const weeksSlider = document.getElementById('weeks-group-time');
     const displayWeeks = Math.min(50, totalWeeks);
     weeksSlider.max = displayWeeks;
-    weeksSlider.value = displayWeeks;
-    document.getElementById('weeks-group-time-value').textContent = displayWeeks.toString();
+
+    // Appliquer 10 semaines par défaut
+    weeksSlider.value = 10;
+    document.getElementById('weeks-group-time-value').textContent = '10';
+    updateWeeksScale('group-time');
 }
 
 // ==================== PAGE EXPLORATION ====================
 
 /** Liste des métriques disponibles pour l'exploration */
 const EXPLORATION_METRICS = {
-    F0_RELATIVE: { label: 'F0 (N/Kg)', column: COLUMNS.F0_RELATIVE, decimals: 2 },
-    V0: { label: 'V0 (m/s)', column: COLUMNS.V0, decimals: 2 },
-    TIME_30M: { label: 'Temps 30m (s)', column: COLUMNS.TIME_30M, decimals: 3 },
-    P_MAX_RELATIVE: { label: 'P Max (W/Kg)', column: COLUMNS.P_MAX_RELATIVE, decimals: 2 },
-    DRF: { label: 'DRF', column: COLUMNS.DRF, decimals: 3 },
-    RF_10M: { label: 'RF 10m', column: COLUMNS.RF_10M, decimals: 2 },
-    RF_PEAK: { label: 'RF Peak', column: COLUMNS.RF_PEAK, decimals: 2 }
+    F0_RELATIVE: { label: 'F0 (N/Kg)', shortLabel: 'F0', column: COLUMNS.F0_RELATIVE, decimals: 2 },
+    V0: { label: 'V0 (m/s)', shortLabel: 'V0', column: COLUMNS.V0, decimals: 2 },
+    TIME_5M: { label: 'Temps 5m (s)', shortLabel: '5m', column: COLUMNS.TIME_5M, decimals: 3 },
+    TIME_10M: { label: 'Temps 10m (s)', shortLabel: '10m', column: COLUMNS.TIME_10M, decimals: 3 },
+    TIME_15M: { label: 'Temps 15m (s)', shortLabel: '15m', column: COLUMNS.TIME_15M, decimals: 3 },
+    TIME_20M: { label: 'Temps 20m (s)', shortLabel: '20m', column: COLUMNS.TIME_20M, decimals: 3 },
+    TIME_25M: { label: 'Temps 25m (s)', shortLabel: '25m', column: COLUMNS.TIME_25M, decimals: 3 },
+    TIME_30M: { label: 'Temps 30m (s)', shortLabel: '30m', column: COLUMNS.TIME_30M, decimals: 3 },
+    P_MAX_RELATIVE: { label: 'P Max (W/Kg)', shortLabel: 'P Max', column: COLUMNS.P_MAX_RELATIVE, decimals: 2 },
+    DRF: { label: 'DRF', shortLabel: 'DRF', column: COLUMNS.DRF, decimals: 3 },
+    RF_10M: { label: 'RF 10m', shortLabel: 'RF10m', column: COLUMNS.RF_10M, decimals: 2 },
+    RF_PEAK: { label: 'RF Peak', shortLabel: 'RFpk', column: COLUMNS.RF_PEAK, decimals: 2 }
 };
 
 // Mettre à jour la vue exploration
@@ -2275,14 +2374,14 @@ function updateCorrelationMatrix(data) {
 
     // En-têtes des colonnes
     metrics.forEach(metric => {
-        const shortLabel = EXPLORATION_METRICS[metric].label.split(' ')[0];
+        const shortLabel = EXPLORATION_METRICS[metric].shortLabel;
         html += `<div class="matrix-cell header">${shortLabel}</div>`;
     });
 
     // Lignes de données
     metrics.forEach(m1 => {
         // En-tête de ligne
-        const shortLabel = EXPLORATION_METRICS[m1].label.split(' ')[0];
+        const shortLabel = EXPLORATION_METRICS[m1].shortLabel;
         html += `<div class="matrix-cell header">${shortLabel}</div>`;
 
         // Cellules de corrélation
@@ -2405,4 +2504,100 @@ function updateGroupTable(selectedDate) {
             </tr>
         `;
     }).join('');
+}
+
+// Mettre à jour la tendance dynamiquement selon le curseur
+function updateTrendWeeks(chartType) {
+    const slider = document.getElementById(`trend-weeks-${chartType}`);
+    const valueDisplay = document.getElementById(`trend-weeks-${chartType}-value`);
+
+    if (!slider || !valueDisplay) return;
+
+    const trendWeeks = parseInt(slider.value);
+    valueDisplay.textContent = trendWeeks;
+
+    if (chartType === 'f0') {
+        // Graphique F0 de l'athlète
+        if (!chartF0 || !chartF0Stats.parsedDates || chartF0Stats.parsedDates.length === 0) return;
+
+        const trendF0Data = calculateSingleTrendData(
+            chartF0Stats.parsedDates,
+            chartF0Stats.values,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 6 - après les bandes et les points)
+        chartF0.data.datasets[6].data = trendF0Data;
+        chartF0.update();
+
+    } else if (chartType === 'v0') {
+        // Graphique V0 de l'athlète
+        if (!chartV0 || !chartV0Stats.parsedDates || chartV0Stats.parsedDates.length === 0) return;
+
+        const trendV0Data = calculateSingleTrendData(
+            chartV0Stats.parsedDates,
+            chartV0Stats.values,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 6 - après les bandes et les points)
+        chartV0.data.datasets[6].data = trendV0Data;
+        chartV0.update();
+
+    } else if (chartType === 'group-f0') {
+        // Graphique F0 du groupe
+        if (!chartGroupF0 || chartGroupF0Stats.parsedDates.length === 0) return;
+
+        const trendF0Data = calculateSingleTrendData(
+            chartGroupF0Stats.parsedDates,
+            chartGroupF0Stats.avgF0,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 1)
+        chartGroupF0.data.datasets[1].data = trendF0Data;
+        chartGroupF0.update();
+
+    } else if (chartType === 'group-v0') {
+        // Graphique V0 du groupe
+        if (!chartGroupV0 || chartGroupV0Stats.parsedDates.length === 0) return;
+
+        const trendV0Data = calculateSingleTrendData(
+            chartGroupV0Stats.parsedDates,
+            chartGroupV0Stats.avgV0,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 1)
+        chartGroupV0.data.datasets[1].data = trendV0Data;
+        chartGroupV0.update();
+
+    } else if (chartType === 'group-power') {
+        // Graphique Puissance du groupe
+        if (!chartGroupPower || chartGroupPowerStats.parsedDates.length === 0) return;
+
+        const trendPowerData = calculateSingleTrendData(
+            chartGroupPowerStats.parsedDates,
+            chartGroupPowerStats.avgPower,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 1)
+        chartGroupPower.data.datasets[1].data = trendPowerData;
+        chartGroupPower.update();
+
+    } else if (chartType === 'group-time') {
+        // Graphique Temps 30m du groupe
+        if (!chartGroupTime || chartGroupTimeStats.parsedDates.length === 0) return;
+
+        const trendTimeData = calculateSingleTrendData(
+            chartGroupTimeStats.parsedDates,
+            chartGroupTimeStats.avgTime,
+            trendWeeks
+        );
+
+        // Mettre à jour le dataset de tendance (indice 1)
+        chartGroupTime.data.datasets[1].data = trendTimeData;
+        chartGroupTime.update();
+    }
 }

@@ -105,33 +105,86 @@ const legendBackgroundPlugin = {
 // ==================== FONCTIONS DE CONTRÔLE DES GRAPHIQUES ====================
 
 /**
- * Réinitialise l'échelle d'un graphique aux valeurs par défaut
- * @param {string} chartType - Type de graphique ('f0', 'v0', 'group', 'group-power', 'group-time')
+ * Peupler les sélecteurs de dates pour un graphique
+ * @param {string} chartType - Type de graphique
+ * @param {Array} dates - Liste des dates disponibles (timestamps)
  */
-function resetScale(chartType) {
-    document.getElementById(`weeks-${chartType}`).value = 10;
-    document.getElementById(`weeks-${chartType}-value`).textContent = '10';
+function populateChartDateSelectors(chartType, dates) {
+    const startSelect = document.getElementById(`date-start-${chartType}`);
+    const endSelect = document.getElementById(`date-end-${chartType}`);
 
-    // Les graphiques de groupe n'ont pas de contrôle Y scale
-    const yScaleElement = document.getElementById(`scale-y-${chartType}`);
-    if (yScaleElement) {
-        yScaleElement.value = 1.5;
-        document.getElementById(`scale-y-${chartType}-value`).textContent = '±1.5';
+    if (!startSelect || !endSelect || !dates || dates.length === 0) return;
+
+    // Convertir les timestamps en dates formatées uniques
+    const uniqueDates = [...new Set(dates.map(d => {
+        const date = new Date(d);
+        return date.toISOString().split('T')[0];
+    }))].sort();
+
+    // Sauvegarder les valeurs actuelles
+    const currentStart = startSelect.value;
+    const currentEnd = endSelect.value;
+
+    // Peupler le sélecteur de début
+    startSelect.innerHTML = '<option value="">Depuis le début</option>';
+    uniqueDates.forEach(dateStr => {
+        const option = document.createElement('option');
+        option.value = dateStr;
+        const [year, month, day] = dateStr.split('-');
+        option.textContent = `${day}/${month}/${year}`;
+        startSelect.appendChild(option);
+    });
+
+    // Peupler le sélecteur de fin
+    endSelect.innerHTML = '<option value="">Jusqu\'à maintenant</option>';
+    uniqueDates.forEach(dateStr => {
+        const option = document.createElement('option');
+        option.value = dateStr;
+        const [year, month, day] = dateStr.split('-');
+        option.textContent = `${day}/${month}/${year}`;
+        endSelect.appendChild(option);
+    });
+
+    // Restaurer les valeurs si elles existent encore
+    if (currentStart && uniqueDates.includes(currentStart)) {
+        startSelect.value = currentStart;
     }
-
-    updateWeeksScale(chartType);
-    if (yScaleElement) {
-        updateYScale(chartType);
+    if (currentEnd && uniqueDates.includes(currentEnd)) {
+        endSelect.value = currentEnd;
     }
 }
 
 /**
- * Ajuste le nombre de semaines affichées sur l'axe X d'un graphique
+ * Réinitialise la plage de dates d'un graphique
  * @param {string} chartType - Type de graphique
  */
-function updateWeeksScale(chartType) {
-    const weeks = parseInt(document.getElementById(`weeks-${chartType}`).value);
-    document.getElementById(`weeks-${chartType}-value`).textContent = weeks;
+function resetDateRange(chartType) {
+    const startSelect = document.getElementById(`date-start-${chartType}`);
+    const endSelect = document.getElementById(`date-end-${chartType}`);
+
+    if (startSelect) startSelect.value = '';
+    if (endSelect) endSelect.value = '';
+
+    // Réinitialiser l'échelle Y pour les graphiques athlète
+    const yScaleElement = document.getElementById(`scale-y-${chartType}`);
+    if (yScaleElement) {
+        yScaleElement.value = 1.5;
+        document.getElementById(`scale-y-${chartType}-value`).textContent = '±1.5';
+        updateYScale(chartType);
+    }
+
+    updateDateScale(chartType);
+}
+
+/**
+ * Met à jour l'échelle X d'un graphique basée sur la sélection de dates
+ * @param {string} chartType - Type de graphique
+ */
+function updateDateScale(chartType) {
+    const startSelect = document.getElementById(`date-start-${chartType}`);
+    const endSelect = document.getElementById(`date-end-${chartType}`);
+
+    if (!startSelect || !endSelect) return;
 
     let chart, stats;
 
@@ -158,10 +211,23 @@ function updateWeeksScale(chartType) {
 
     if (!chart || !stats.dates || stats.dates.length === 0) return;
 
-    // Calculer la date minimum basée sur le nombre de semaines
-    const maxDate = Math.max(...stats.dates);
-    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-    const minDate = maxDate - (weeks * msPerWeek);
+    const startDateStr = startSelect.value;
+    const endDateStr = endSelect.value;
+
+    let minDate, maxDate;
+
+    if (startDateStr) {
+        minDate = new Date(startDateStr).getTime();
+    } else {
+        minDate = Math.min(...stats.dates);
+    }
+
+    if (endDateStr) {
+        // Ajouter 1 jour pour inclure la date de fin complète
+        maxDate = new Date(endDateStr).getTime() + (24 * 60 * 60 * 1000);
+    } else {
+        maxDate = Math.max(...stats.dates);
+    }
 
     chart.options.scales.x.min = minDate;
     chart.options.scales.x.max = maxDate;
@@ -198,6 +264,7 @@ function updateYScale(chartType) {
 const COLUMNS = {
     DATE: 'Date',
     NAME: 'Name',
+    SEX: 'Sexe',
     TIME_5M: '5m',
     TIME_10M: '10m',
     TIME_15M: '15m',
@@ -527,6 +594,10 @@ function updateAthleteView(athleteName) {
 
 // Mettre à jour les cartes résumé (F0, V0, Temps 30m)
 function updateSummaryCards(athleteData, athleteName) {
+    // Obtenir l'indicateur de sexe pour le ranking
+    const athleteSex = getAthleteSex(athleteName);
+    const sexIcon = athleteSex === 'Homme' ? '♂' : athleteSex === 'Femme' ? '♀' : '';
+
     // Stats F0
     const f0Stats = calculateStatsWithZScore(athleteData, COLUMNS.F0_RELATIVE);
     if (f0Stats) {
@@ -534,7 +605,7 @@ function updateSummaryCards(athleteData, athleteName) {
         document.getElementById('f0-zscore').textContent = `Z: ${f0Stats.zScore.toFixed(2)}`;
         updateVariation('f0-variation', f0Stats.variation, false);
         const f0Ranking = calculateRanking(athleteName, COLUMNS.F0_RELATIVE, false);
-        document.getElementById('f0-ranking').textContent = `Last: ${f0Ranking.lastRank}/${f0Ranking.total} | Best: ${f0Ranking.bestRank}/${f0Ranking.total}`;
+        document.getElementById('f0-ranking').textContent = `Last: ${f0Ranking.lastRank}/${f0Ranking.total}${sexIcon} | Best: ${f0Ranking.bestRank}/${f0Ranking.total}${sexIcon}`;
     }
 
     // Stats V0
@@ -544,7 +615,7 @@ function updateSummaryCards(athleteData, athleteName) {
         document.getElementById('v0-zscore').textContent = `Z: ${v0Stats.zScore.toFixed(2)}`;
         updateVariation('v0-variation', v0Stats.variation, false);
         const v0Ranking = calculateRanking(athleteName, COLUMNS.V0, false);
-        document.getElementById('v0-ranking').textContent = `Last: ${v0Ranking.lastRank}/${v0Ranking.total} | Best: ${v0Ranking.bestRank}/${v0Ranking.total}`;
+        document.getElementById('v0-ranking').textContent = `Last: ${v0Ranking.lastRank}/${v0Ranking.total}${sexIcon} | Best: ${v0Ranking.bestRank}/${v0Ranking.total}${sexIcon}`;
     }
 
     // Stats Temps 30m
@@ -563,7 +634,7 @@ function updateSummaryCards(athleteData, athleteName) {
         }
 
         const timeRanking = calculateRanking(athleteName, COLUMNS.TIME_30M, true);
-        document.getElementById('time-ranking').textContent = `Last: ${timeRanking.lastRank}/${timeRanking.total} | Best: ${timeRanking.bestRank}/${timeRanking.total}`;
+        document.getElementById('time-ranking').textContent = `Last: ${timeRanking.lastRank}/${timeRanking.total}${sexIcon} | Best: ${timeRanking.bestRank}/${timeRanking.total}${sexIcon}`;
     }
 }
 
@@ -586,12 +657,25 @@ function calculateStatsWithZScore(data, column) {
 
 // Calculer le ranking d'un athlète dans le groupe
 function calculateRanking(athleteName, column, isTimeMetric) {
+    // Obtenir le sexe de l'athlète sélectionné
+    const athleteSex = getAthleteSex(athleteName);
+
     const allValues = [];
     const allBestValues = [];
-    const athletes = [...new Set(allData.map(row => row[COLUMNS.NAME].trim()))];
+
+    // Filtrer les athlètes du même sexe
+    const sameSexData = athleteSex
+        ? allData.filter(row => {
+            const rowSex = row[COLUMNS.SEX];
+            if (!rowSex) return false;
+            return rowSex.trim().toLowerCase() === athleteSex.toLowerCase();
+        })
+        : allData;
+
+    const athletes = [...new Set(sameSexData.map(row => row[COLUMNS.NAME].trim()))];
 
     athletes.forEach(athlete => {
-        const athleteRows = allData.filter(row => row[COLUMNS.NAME].trim() === athlete);
+        const athleteRows = sameSexData.filter(row => row[COLUMNS.NAME].trim() === athlete);
         const values = athleteRows.map(row => parseFloat(row[column])).filter(v => !isNaN(v));
 
         if (values.length > 0) {
@@ -613,7 +697,7 @@ function calculateRanking(athleteName, column, isTimeMetric) {
     const lastRank = allValues.findIndex(item => item.athlete === athleteName) + 1;
     const bestRank = allBestValues.findIndex(item => item.athlete === athleteName) + 1;
 
-    return { lastRank: lastRank || '-', bestRank: bestRank || '-', total: allValues.length };
+    return { lastRank: lastRank || '-', bestRank: bestRank || '-', total: allValues.length, sex: athleteSex };
 }
 
 // Mettre à jour l'affichage de la variation
@@ -767,16 +851,11 @@ function updateChartF0(athleteData) {
         options: getChartOptions('F0 (N/Kg)', stats, dates)
     });
 
-    // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartF0Stats.dates) - Math.min(...chartF0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('f0', chartF0Stats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-f0');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer l'échelle par défaut (10 semaines, ±1.5 ET) comme lors d'un reset
-    resetScale('f0');
+    // Appliquer l'échelle par défaut
+    resetDateRange('f0');
 }
 
 // Mettre à jour le graphique V0
@@ -882,16 +961,11 @@ function updateChartV0(athleteData) {
         options: getChartOptions('V0 (m/s)', stats, dates)
     });
 
-    // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartV0Stats.dates) - Math.min(...chartV0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('v0', chartV0Stats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-v0');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer l'échelle par défaut (10 semaines, ±1.5 ET) comme lors d'un reset
-    resetScale('v0');
+    // Appliquer l'échelle par défaut
+    resetDateRange('v0');
 }
 
 // Options communes pour les graphiques
@@ -899,13 +973,12 @@ function getChartOptions(yLabel, stats, dates) {
     const yMin = stats ? stats.mean - 1.5 * stats.std : undefined;
     const yMax = stats ? stats.mean + 1.5 * stats.std : undefined;
 
-    // Calculer les limites X pour afficher 10 semaines par défaut
+    // Calculer les limites X pour afficher toutes les données par défaut
     let xMin, xMax;
     if (dates && dates.length > 0) {
         const timestamps = dates.map(d => d.getTime());
+        xMin = Math.min(...timestamps);
         xMax = Math.max(...timestamps);
-        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-        xMin = xMax - (10 * msPerWeek);
     }
 
     return {
@@ -1014,6 +1087,47 @@ function getLatestAthleteValues(athleteName) {
     };
 }
 
+// Obtenir le sexe d'un athlète
+function getAthleteSex(athleteName) {
+    const athleteData = allData.find(row => row[COLUMNS.NAME].trim() === athleteName);
+    if (!athleteData) return null;
+    const sex = athleteData[COLUMNS.SEX];
+    if (!sex) return null;
+    return sex.trim().toLowerCase() === 'femme' ? 'Femme' : 'Homme';
+}
+
+// Calculer les valeurs moyennes par sexe pour le radar chart
+function getAverageValuesBySex(sex) {
+    // Filtrer les données par sexe
+    const sexData = allData.filter(row => {
+        const rowSex = row[COLUMNS.SEX];
+        if (!rowSex) return false;
+        return rowSex.trim().toLowerCase() === sex.toLowerCase();
+    });
+
+    if (sexData.length === 0) return null;
+
+    // Obtenir les dernières valeurs de chaque athlète de ce sexe
+    const athletesBySex = [...new Set(sexData.map(row => row[COLUMNS.NAME].trim()))];
+    const latestValues = athletesBySex
+        .map(name => getLatestAthleteValues(name))
+        .filter(v => v !== null);
+
+    if (latestValues.length === 0) return null;
+
+    // Calculer les moyennes
+    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+    return {
+        f0: avg(latestValues.map(v => v.f0)),
+        v0: avg(latestValues.map(v => v.v0)),
+        time30m: avg(latestValues.map(v => v.time30m)),
+        pMax: avg(latestValues.map(v => v.pMax)),
+        drf: avg(latestValues.map(v => v.drf)),
+        rf10m: avg(latestValues.map(v => v.rf10m))
+    };
+}
+
 // Échelles absolues fixes pour le radar chart (valeurs de référence)
 const RADAR_SCALES = {
     f0: { min: 5, max: 10 },           // F0 : 6 à 11 N/Kg
@@ -1049,6 +1163,10 @@ function updateRadarChart() {
 
     const scales = getRadarScales();
 
+    // Obtenir le sexe de l'athlète et les moyennes correspondantes
+    const athleteSex = getAthleteSex(currentAthlete);
+    const sexAverageValues = athleteSex ? getAverageValuesBySex(athleteSex) : null;
+
     // Normaliser les valeurs avec les échelles fixes
     // Pour temps 30m et DRF : min = pire valeur, max = meilleure valeur (inversé dans l'échelle)
     const mainNormalized = [
@@ -1060,20 +1178,49 @@ function updateRadarChart() {
         normalizeValue(mainValues.rf10m, scales.rf10m.min, scales.rf10m.max)
     ];
 
-    const datasets = [
-        {
-            label: currentAthlete,
-            data: mainNormalized,
-            backgroundColor: 'rgba(255, 140, 0, 0.3)',
-            borderColor: 'rgb(255, 140, 0)',
+    const datasets = [];
+
+    // Ajouter les moyennes par sexe en premier (fond gris clair)
+    if (sexAverageValues) {
+        const sexNormalized = [
+            normalizeValue(sexAverageValues.f0, scales.f0.min, scales.f0.max),
+            normalizeValue(sexAverageValues.v0, scales.v0.min, scales.v0.max),
+            normalizeValue(sexAverageValues.time30m, scales.time30m.min, scales.time30m.max),
+            normalizeValue(sexAverageValues.pMax, scales.pMax.min, scales.pMax.max),
+            normalizeValue(sexAverageValues.drf, scales.drf.min, scales.drf.max),
+            normalizeValue(sexAverageValues.rf10m, scales.rf10m.min, scales.rf10m.max)
+        ];
+
+        datasets.push({
+            label: `Moyenne ${athleteSex}s`,
+            data: sexNormalized,
+            backgroundColor: 'transparent',
+            borderColor: 'rgba(100, 100, 100, 0.8)',
             borderWidth: 2,
-            pointBackgroundColor: 'rgb(255, 140, 0)',
-            pointBorderColor: '#fff',
-            pointHoverBackgroundColor: '#fff',
-            pointHoverBorderColor: 'rgb(255, 140, 0)',
-            pointRadius: 4
-        }
-    ];
+            borderDash: [5, 5],
+            pointBackgroundColor: 'rgba(100, 100, 100, 0.8)',
+            pointBorderColor: 'rgba(100, 100, 100, 0.6)',
+            pointHoverBackgroundColor: 'rgba(100, 100, 100, 1)',
+            pointHoverBorderColor: 'rgba(100, 100, 100, 0.8)',
+            pointRadius: 3,
+            order: 2  // Dessiner en arrière-plan
+        });
+    }
+
+    // Ajouter l'athlète principal (orange)
+    datasets.push({
+        label: currentAthlete,
+        data: mainNormalized,
+        backgroundColor: 'transparent',
+        borderColor: 'rgb(255, 140, 0)',
+        borderWidth: 2.5,
+        pointBackgroundColor: 'rgb(255, 140, 0)',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgb(255, 140, 0)',
+        pointRadius: 5,
+        order: 0  // Dessiner au premier plan
+    });
 
     // Ajouter les données de comparaison si un athlète est sélectionné
     if (compareAthlete) {
@@ -1091,14 +1238,15 @@ function updateRadarChart() {
             datasets.push({
                 label: compareAthlete,
                 data: compareNormalized,
-                backgroundColor: 'rgba(30, 144, 255, 0.3)',
+                backgroundColor: 'transparent',
                 borderColor: 'rgb(30, 144, 255)',
-                borderWidth: 2,
+                borderWidth: 2.5,
                 pointBackgroundColor: 'rgb(30, 144, 255)',
                 pointBorderColor: '#fff',
                 pointHoverBackgroundColor: '#fff',
                 pointHoverBorderColor: 'rgb(30, 144, 255)',
-                pointRadius: 4
+                pointRadius: 5,
+                order: 1  // Dessiner entre la moyenne et l'athlète principal
             });
         }
     }
@@ -1137,16 +1285,25 @@ function updateRadarChart() {
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const athleteName = context.dataset.label;
+                            const datasetLabel = context.dataset.label;
                             const metricIndex = context.dataIndex;
-                            const values = getLatestAthleteValues(athleteName);
-                            if (!values) return '';
-
-                            const rawValues = [values.f0, values.v0, values.time30m, values.pMax, values.drf, values.rf10m];
-                            const units = ['N/Kg', 'm/s', 's', 'W/Kg', '', ''];
                             const percentage = context.parsed.r.toFixed(0);
+                            const units = ['N/Kg', 'm/s', 's', 'W/Kg', '', ''];
 
-                            return `${athleteName}: ${rawValues[metricIndex].toFixed(2)} ${units[metricIndex]} (${percentage}%)`;
+                            // Vérifier si c'est une moyenne par sexe
+                            if (datasetLabel.startsWith('Moyenne ')) {
+                                const sex = datasetLabel.replace('Moyenne ', '').replace('s', '');
+                                const values = getAverageValuesBySex(sex);
+                                if (!values) return '';
+                                const rawValues = [values.f0, values.v0, values.time30m, values.pMax, values.drf, values.rf10m];
+                                return `${datasetLabel}: ${rawValues[metricIndex].toFixed(2)} ${units[metricIndex]} (${percentage}%)`;
+                            }
+
+                            // Sinon c'est un athlète individuel
+                            const values = getLatestAthleteValues(datasetLabel);
+                            if (!values) return '';
+                            const rawValues = [values.f0, values.v0, values.time30m, values.pMax, values.drf, values.rf10m];
+                            return `${datasetLabel}: ${rawValues[metricIndex].toFixed(2)} ${units[metricIndex]} (${percentage}%)`;
                         }
                     }
                 }
@@ -1182,18 +1339,29 @@ function updateRadarChart() {
     });
 
     // Mettre à jour la légende custom
-    updateRadarLegend(compareAthlete);
+    updateRadarLegend(compareAthlete, athleteSex);
 }
 
 // Mettre à jour la légende du radar chart
-function updateRadarLegend(compareAthlete) {
+function updateRadarLegend(compareAthlete, athleteSex) {
     const legendContainer = document.querySelector('.radar-legend');
     const compareLegend = legendContainer.querySelector('.legend-item.compare');
+    const sexAverageLegend = legendContainer.querySelector('.legend-item.sex-average');
+    const sexAverageLabel = document.getElementById('sex-average-label');
 
     if (compareAthlete) {
         compareLegend.style.display = 'flex';
     } else {
         compareLegend.style.display = 'none';
+    }
+
+    if (athleteSex && sexAverageLegend) {
+        sexAverageLegend.style.display = 'flex';
+        if (sexAverageLabel) {
+            sexAverageLabel.textContent = `Moyenne ${athleteSex}s`;
+        }
+    } else if (sexAverageLegend) {
+        sexAverageLegend.style.display = 'none';
     }
 }
 
@@ -1211,40 +1379,72 @@ function updateGroupView() {
 
 // Mettre à jour les stats groupe
 function updateGroupStats() {
-    const dataByDate = {};
-    allData.forEach(row => {
-        const date = row[COLUMNS.DATE];
-        if (!dataByDate[date]) {
-            dataByDate[date] = [];
+    // Calculer les stats par sexe
+    ['Homme', 'Femme'].forEach(sex => {
+        const sexKey = sex.toLowerCase();
+
+        // Filtrer les données par sexe
+        const sexData = allData.filter(row => {
+            const rowSex = row[COLUMNS.SEX];
+            if (!rowSex) return false;
+            return rowSex.trim().toLowerCase() === sexKey;
+        });
+
+        if (sexData.length === 0) {
+            // Pas de données pour ce sexe
+            const el = document.getElementById(`group-f0-${sexKey}`);
+            if (el) el.textContent = '--';
+            const elV0 = document.getElementById(`group-v0-${sexKey}`);
+            if (elV0) elV0.textContent = '--';
+            const elTime = document.getElementById(`group-time-${sexKey}`);
+            if (elTime) elTime.textContent = '--';
+            return;
         }
-        dataByDate[date].push(row);
+
+        // Grouper par date pour ce sexe
+        const dataByDate = {};
+        sexData.forEach(row => {
+            const date = row[COLUMNS.DATE];
+            if (!dataByDate[date]) {
+                dataByDate[date] = [];
+            }
+            dataByDate[date].push(row);
+        });
+
+        const dates = Object.keys(dataByDate).sort((a, b) => parseDate(a) - parseDate(b));
+
+        if (dates.length < 1) return;
+
+        const lastDate = dates[dates.length - 1];
+        const lastData = dataByDate[lastDate];
+
+        const avgF0 = average(lastData.map(r => parseFloat(r[COLUMNS.F0_RELATIVE])));
+        const avgV0 = average(lastData.map(r => parseFloat(r[COLUMNS.V0])));
+        const avgTime = average(lastData.map(r => parseFloat(r[COLUMNS.TIME_30M])));
+
+        document.getElementById(`group-f0-${sexKey}`).textContent = avgF0.toFixed(2);
+        document.getElementById(`group-v0-${sexKey}`).textContent = avgV0.toFixed(2);
+        document.getElementById(`group-time-${sexKey}`).textContent = avgTime.toFixed(3);
+
+        // Calculer la variation si on a au moins 2 dates
+        if (dates.length >= 2) {
+            const prevDate = dates[dates.length - 2];
+            const prevData = dataByDate[prevDate];
+
+            const prevF0 = average(prevData.map(r => parseFloat(r[COLUMNS.F0_RELATIVE])));
+            const prevV0 = average(prevData.map(r => parseFloat(r[COLUMNS.V0])));
+            const prevTime = average(prevData.map(r => parseFloat(r[COLUMNS.TIME_30M])));
+
+            setTrend(`trend-f0-${sexKey}`, avgF0 - prevF0, true);
+            setTrend(`trend-v0-${sexKey}`, avgV0 - prevV0, true);
+            setTrend(`trend-time-${sexKey}`, avgTime - prevTime, false);
+        } else {
+            // Pas assez de données pour calculer la variation
+            document.getElementById(`trend-f0-${sexKey}`).textContent = '--';
+            document.getElementById(`trend-v0-${sexKey}`).textContent = '--';
+            document.getElementById(`trend-time-${sexKey}`).textContent = '--';
+        }
     });
-
-    const dates = Object.keys(dataByDate).sort((a, b) => parseDate(a) - parseDate(b));
-
-    if (dates.length < 2) return;
-
-    const lastDate = dates[dates.length - 1];
-    const prevDate = dates[dates.length - 2];
-
-    const lastData = dataByDate[lastDate];
-    const prevData = dataByDate[prevDate];
-
-    const avgF0 = average(lastData.map(r => parseFloat(r[COLUMNS.F0_RELATIVE])));
-    const avgV0 = average(lastData.map(r => parseFloat(r[COLUMNS.V0])));
-    const avgTime = average(lastData.map(r => parseFloat(r[COLUMNS.TIME_30M])));
-
-    const prevF0 = average(prevData.map(r => parseFloat(r[COLUMNS.F0_RELATIVE])));
-    const prevV0 = average(prevData.map(r => parseFloat(r[COLUMNS.V0])));
-    const prevTime = average(prevData.map(r => parseFloat(r[COLUMNS.TIME_30M])));
-
-    document.getElementById('group-f0').textContent = avgF0.toFixed(2);
-    document.getElementById('group-v0').textContent = avgV0.toFixed(2);
-    document.getElementById('group-time').textContent = avgTime.toFixed(2);
-
-    setTrend('trend-f0', avgF0 - prevF0, true);
-    setTrend('trend-v0', avgV0 - prevV0, true);
-    setTrend('trend-time', avgTime - prevTime, false);
 }
 
 function average(arr) {
@@ -1386,18 +1586,11 @@ function updateGroupF0Chart() {
         }
     });
 
-    // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupF0Stats.dates) - Math.min(...chartGroupF0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('group-f0', chartGroupF0Stats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-group-f0');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer 10 semaines par défaut
-    weeksSlider.value = 10;
-    document.getElementById('weeks-group-f0-value').textContent = '10';
-    updateWeeksScale('group-f0');
+    // Appliquer l'échelle par défaut
+    resetDateRange('group-f0');
 }
 
 // Mettre à jour le graphique V0 du groupe
@@ -1493,17 +1686,11 @@ function updateGroupV0Chart() {
     });
 
     // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupV0Stats.dates) - Math.min(...chartGroupV0Stats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('group-v0', chartGroupV0Stats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-group-v0');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer 10 semaines par défaut
-    weeksSlider.value = 10;
-    document.getElementById('weeks-group-v0-value').textContent = '10';
-    updateWeeksScale('group-v0');
+    // Appliquer l'échelle par défaut
+    resetDateRange('group-v0');
 }
 
 // Mettre à jour le graphique de puissance moyenne du groupe
@@ -1615,17 +1802,11 @@ function updateGroupPowerChart() {
     });
 
     // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupPowerStats.dates) - Math.min(...chartGroupPowerStats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('group-power', chartGroupPowerStats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-group-power');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer 10 semaines par défaut
-    weeksSlider.value = 10;
-    document.getElementById('weeks-group-power-value').textContent = '10';
-    updateWeeksScale('group-power');
+    // Appliquer l'échelle par défaut
+    resetDateRange('group-power');
 }
 
 // Calculer les données de tendance pour un seul jeu de données
@@ -1749,17 +1930,11 @@ function updateGroupTimeChart() {
     });
 
     // Calculer le nombre total de semaines disponibles
-    const totalWeeks = Math.max(10, Math.ceil((Math.max(...chartGroupTimeStats.dates) - Math.min(...chartGroupTimeStats.dates)) / (7 * 24 * 60 * 60 * 1000)));
+    // Peupler les sélecteurs de dates
+    populateChartDateSelectors('group-time', chartGroupTimeStats.dates);
 
-    // Mettre à jour le max du slider dynamiquement
-    const weeksSlider = document.getElementById('weeks-group-time');
-    const displayWeeks = Math.min(50, totalWeeks);
-    weeksSlider.max = displayWeeks;
-
-    // Appliquer 10 semaines par défaut
-    weeksSlider.value = 10;
-    document.getElementById('weeks-group-time-value').textContent = '10';
-    updateWeeksScale('group-time');
+    // Appliquer l'échelle par défaut
+    resetDateRange('group-time');
 }
 
 // ==================== PAGE EXPLORATION ====================
@@ -2436,15 +2611,7 @@ function selectMatrixMetrics(metricX, metricY) {
 
 // Mettre à jour le tableau groupe
 function updateGroupTable(selectedDate) {
-    const thead = document.querySelector('#group-table thead');
-    const tbody = document.querySelector('#group-table tbody');
-
     const dateData = allData.filter(row => row[COLUMNS.DATE] === selectedDate);
-
-    if (dateData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">Aucune donnée pour cette date</td></tr>';
-        return;
-    }
 
     // Récupérer la métrique de tri sélectionnée
     const sortMetricSelect = document.getElementById('sort-metric-select');
@@ -2462,48 +2629,70 @@ function updateGroupTable(selectedDate) {
         { key: 'RF_PEAK', label: 'RF Peak', format: (v) => parseFloat(v).toFixed(2), lowerIsBetter: false }
     ];
 
-    // Générer l'en-tête avec indication de la colonne triée
-    thead.innerHTML = `
-        <tr>
-            ${columnConfig.map(col => {
-                const isSorted = col.key === sortMetric;
-                return `<th class="${isSorted ? 'sorted-column' : ''}">${col.label}${isSorted ? ' ▼' : ''}</th>`;
-            }).join('')}
-        </tr>
-    `;
-
     // Déterminer si la métrique de tri est "plus bas = meilleur"
     const sortConfig = columnConfig.find(col => col.key === sortMetric);
     const lowerIsBetter = sortConfig ? sortConfig.lowerIsBetter : true;
 
-    // Trier les données
-    const sortedData = [...dateData].sort((a, b) => {
-        const valA = parseFloat(a[COLUMNS[sortMetric]]);
-        const valB = parseFloat(b[COLUMNS[sortMetric]]);
+    // Mettre à jour chaque tableau par sexe
+    ['Homme', 'Femme'].forEach(sex => {
+        const sexKey = sex.toLowerCase();
+        const thead = document.querySelector(`#group-table-${sexKey} thead`);
+        const tbody = document.querySelector(`#group-table-${sexKey} tbody`);
 
-        if (isNaN(valA)) return 1;
-        if (isNaN(valB)) return -1;
+        if (!thead || !tbody) return;
 
-        return lowerIsBetter ? valA - valB : valB - valA;
-    });
+        // Filtrer les données par sexe
+        const sexData = dateData.filter(row => {
+            const rowSex = row[COLUMNS.SEX];
+            if (!rowSex) return false;
+            return rowSex.trim().toLowerCase() === sexKey;
+        });
 
-    // Générer les lignes du tableau
-    tbody.innerHTML = sortedData.map((row, index) => {
-        const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
+        if (sexData.length === 0) {
+            thead.innerHTML = '';
+            tbody.innerHTML = '<tr><td colspan="8">Aucune donnée pour ce groupe</td></tr>';
+            return;
+        }
 
-        return `
+        // Générer l'en-tête avec indication de la colonne triée
+        thead.innerHTML = `
             <tr>
-                <td>${medal}${row[COLUMNS.NAME]}</td>
-                <td class="${sortMetric === 'TIME_30M' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.TIME_30M]).toFixed(2)}</td>
-                <td class="${sortMetric === 'F0_RELATIVE' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.F0_RELATIVE]).toFixed(2)}</td>
-                <td class="${sortMetric === 'V0' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.V0]).toFixed(2)}</td>
-                <td class="${sortMetric === 'P_MAX_RELATIVE' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.P_MAX_RELATIVE]).toFixed(2)}</td>
-                <td class="${sortMetric === 'DRF' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.DRF]).toFixed(3)}</td>
-                <td class="${sortMetric === 'RF_10M' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.RF_10M]).toFixed(2)}</td>
-                <td class="${sortMetric === 'RF_PEAK' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.RF_PEAK]).toFixed(2)}</td>
+                ${columnConfig.map(col => {
+                    const isSorted = col.key === sortMetric;
+                    return `<th class="${isSorted ? 'sorted-column' : ''}">${col.label}${isSorted ? ' ▼' : ''}</th>`;
+                }).join('')}
             </tr>
         `;
-    }).join('');
+
+        // Trier les données
+        const sortedData = [...sexData].sort((a, b) => {
+            const valA = parseFloat(a[COLUMNS[sortMetric]]);
+            const valB = parseFloat(b[COLUMNS[sortMetric]]);
+
+            if (isNaN(valA)) return 1;
+            if (isNaN(valB)) return -1;
+
+            return lowerIsBetter ? valA - valB : valB - valA;
+        });
+
+        // Générer les lignes du tableau
+        tbody.innerHTML = sortedData.map((row, index) => {
+            const medal = index === 0 ? '🥇 ' : index === 1 ? '🥈 ' : index === 2 ? '🥉 ' : '';
+
+            return `
+                <tr>
+                    <td>${medal}${row[COLUMNS.NAME]}</td>
+                    <td class="${sortMetric === 'TIME_30M' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.TIME_30M]).toFixed(2)}</td>
+                    <td class="${sortMetric === 'F0_RELATIVE' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.F0_RELATIVE]).toFixed(2)}</td>
+                    <td class="${sortMetric === 'V0' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.V0]).toFixed(2)}</td>
+                    <td class="${sortMetric === 'P_MAX_RELATIVE' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.P_MAX_RELATIVE]).toFixed(2)}</td>
+                    <td class="${sortMetric === 'DRF' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.DRF]).toFixed(3)}</td>
+                    <td class="${sortMetric === 'RF_10M' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.RF_10M]).toFixed(2)}</td>
+                    <td class="${sortMetric === 'RF_PEAK' ? 'sorted-column' : ''}">${parseFloat(row[COLUMNS.RF_PEAK]).toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+    });
 }
 
 // Mettre à jour la tendance dynamiquement selon le curseur

@@ -92,6 +92,7 @@
                 <div class="radar-legend">
                     <span class="legend-item athlete"><span class="color-box"></span> Athlète sélectionné</span>
                     <span class="legend-item compare"><span class="color-box"></span> Comparaison</span>
+                    <span class="legend-item sex-average"><span class="color-box"></span> <span id="sex-average-label">Moyenne du groupe</span></span>
                 </div>
             </div>
 
@@ -100,13 +101,16 @@
                 <div class="chart-wrapper">
                     <div class="chart-header">
                         <h3>Évolution hebdomadaire de F0 (Force)</h3>
-                        <button class="reset-zoom-btn" onclick="resetScale('f0')">Réinitialiser</button>
+                        <button class="reset-zoom-btn" onclick="resetDateRange('f0')">Réinitialiser</button>
                     </div>
                     <div class="scale-controls">
-                        <div class="scale-control">
-                            <label>Semaines affichées:</label>
-                            <input type="range" id="weeks-f0" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('f0')">
-                            <span id="weeks-f0-value">10</span>
+                        <div class="scale-control date-control">
+                            <label>Du:</label>
+                            <select id="date-start-f0" onchange="updateDateScale('f0')"></select>
+                        </div>
+                        <div class="scale-control date-control">
+                            <label>Au:</label>
+                            <select id="date-end-f0" onchange="updateDateScale('f0')"></select>
                         </div>
                         <div class="scale-control">
                             <label>Échelle Y (±ET):</label>
@@ -126,13 +130,16 @@
                 <div class="chart-wrapper">
                     <div class="chart-header">
                         <h3>Évolution hebdomadaire de V0 (Vitesse)</h3>
-                        <button class="reset-zoom-btn" onclick="resetScale('v0')">Réinitialiser</button>
+                        <button class="reset-zoom-btn" onclick="resetDateRange('v0')">Réinitialiser</button>
                     </div>
                     <div class="scale-controls">
-                        <div class="scale-control">
-                            <label>Semaines affichées:</label>
-                            <input type="range" id="weeks-v0" min="10" max="50" step="1" value="10" oninput="updateWeeksScale('v0')">
-                            <span id="weeks-v0-value">10</span>
+                        <div class="scale-control date-control">
+                            <label>Du:</label>
+                            <select id="date-start-v0" onchange="updateDateScale('v0')"></select>
+                        </div>
+                        <div class="scale-control date-control">
+                            <label>Au:</label>
+                            <select id="date-end-v0" onchange="updateDateScale('v0')"></select>
                         </div>
                         <div class="scale-control">
                             <label>Échelle Y (±ET):</label>
@@ -170,22 +177,50 @@
         <section id="page-groupe" class="page">
             <h2>Vue d'ensemble du groupe</h2>
 
-            <!-- Tendances du groupe -->
-            <div class="group-stats">
-                <div class="stat-card">
-                    <h3>F0 moyen du groupe</h3>
-                    <div class="value" id="group-f0">--</div>
-                    <div class="trend" id="trend-f0">--</div>
+            <!-- Tendances du groupe par sexe -->
+            <div class="group-stats-section">
+                <div class="sex-group-header">
+                    <h3>👨 Groupe Hommes</h3>
                 </div>
-                <div class="stat-card">
-                    <h3>V0 moyen du groupe</h3>
-                    <div class="value" id="group-v0">--</div>
-                    <div class="trend" id="trend-v0">--</div>
+                <div class="group-stats">
+                    <div class="stat-card">
+                        <h3>F0 moyen</h3>
+                        <div class="value" id="group-f0-homme">--</div>
+                        <div class="trend" id="trend-f0-homme">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>V0 moyen</h3>
+                        <div class="value" id="group-v0-homme">--</div>
+                        <div class="trend" id="trend-v0-homme">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Temps 30m moyen</h3>
+                        <div class="value" id="group-time-homme">--</div>
+                        <div class="trend" id="trend-time-homme">--</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <h3>Temps 30m moyen</h3>
-                    <div class="value" id="group-time">--</div>
-                    <div class="trend" id="trend-time">--</div>
+            </div>
+
+            <div class="group-stats-section">
+                <div class="sex-group-header">
+                    <h3>👩 Groupe Femmes</h3>
+                </div>
+                <div class="group-stats">
+                    <div class="stat-card">
+                        <h3>F0 moyen</h3>
+                        <div class="value" id="group-f0-femme">--</div>
+                        <div class="trend" id="trend-f0-femme">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>V0 moyen</h3>
+                        <div class="value" id="group-v0-femme">--</div>
+                        <div class="trend" id="trend-v0-femme">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Temps 30m moyen</h3>
+                        <div class="value" id="group-time-femme">--</div>
+                        <div class="trend" id="trend-time-femme">--</div>
+                    </div>
                 </div>
             </div>
 
@@ -193,13 +228,16 @@
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
                     <h3>Évolution de la force moyenne du groupe (F0)</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-f0')">Réinitialiser</button>
+                    <button class="reset-zoom-btn" onclick="resetDateRange('group-f0')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
-                    <div class="scale-control">
-                        <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-f0" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-f0')">
-                        <span id="weeks-group-f0-value">10</span>
+                    <div class="scale-control date-control">
+                        <label>Du:</label>
+                        <select id="date-start-group-f0" onchange="updateDateScale('group-f0')"></select>
+                    </div>
+                    <div class="scale-control date-control">
+                        <label>Au:</label>
+                        <select id="date-end-group-f0" onchange="updateDateScale('group-f0')"></select>
                     </div>
                     <div class="scale-control">
                         <label>Tendance (sem.):</label>
@@ -216,13 +254,16 @@
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
                     <h3>Évolution de la vitesse moyenne du groupe (V0)</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-v0')">Réinitialiser</button>
+                    <button class="reset-zoom-btn" onclick="resetDateRange('group-v0')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
-                    <div class="scale-control">
-                        <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-v0" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-v0')">
-                        <span id="weeks-group-v0-value">10</span>
+                    <div class="scale-control date-control">
+                        <label>Du:</label>
+                        <select id="date-start-group-v0" onchange="updateDateScale('group-v0')"></select>
+                    </div>
+                    <div class="scale-control date-control">
+                        <label>Au:</label>
+                        <select id="date-end-group-v0" onchange="updateDateScale('group-v0')"></select>
                     </div>
                     <div class="scale-control">
                         <label>Tendance (sem.):</label>
@@ -239,13 +280,16 @@
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
                     <h3>Évolution de la puissance moyenne du groupe</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-power')">Réinitialiser</button>
+                    <button class="reset-zoom-btn" onclick="resetDateRange('group-power')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
-                    <div class="scale-control">
-                        <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-power" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-power')">
-                        <span id="weeks-group-power-value">10</span>
+                    <div class="scale-control date-control">
+                        <label>Du:</label>
+                        <select id="date-start-group-power" onchange="updateDateScale('group-power')"></select>
+                    </div>
+                    <div class="scale-control date-control">
+                        <label>Au:</label>
+                        <select id="date-end-group-power" onchange="updateDateScale('group-power')"></select>
                     </div>
                     <div class="scale-control">
                         <label>Tendance (sem.):</label>
@@ -262,13 +306,16 @@
             <div class="chart-wrapper full-width">
                 <div class="chart-header">
                     <h3>Évolution du temps 30m moyen du groupe</h3>
-                    <button class="reset-zoom-btn" onclick="resetScale('group-time')">Réinitialiser</button>
+                    <button class="reset-zoom-btn" onclick="resetDateRange('group-time')">Réinitialiser</button>
                 </div>
                 <div class="scale-controls">
-                    <div class="scale-control">
-                        <label>Semaines affichées:</label>
-                        <input type="range" id="weeks-group-time" min="4" max="50" step="1" value="10" oninput="updateWeeksScale('group-time')">
-                        <span id="weeks-group-time-value">10</span>
+                    <div class="scale-control date-control">
+                        <label>Du:</label>
+                        <select id="date-start-group-time" onchange="updateDateScale('group-time')"></select>
+                    </div>
+                    <div class="scale-control date-control">
+                        <label>Au:</label>
+                        <select id="date-end-group-time" onchange="updateDateScale('group-time')"></select>
                     </div>
                     <div class="scale-control">
                         <label>Tendance (sem.):</label>
@@ -281,7 +328,7 @@
                 </div>
             </div>
 
-            <!-- Tableau comparatif -->
+            <!-- Tableaux comparatifs par sexe -->
             <div class="group-table-section">
                 <div class="table-header-controls">
                     <h3>Comparaison des athlètes (dernière semaine)</h3>
@@ -298,11 +345,27 @@
                         </select>
                     </div>
                 </div>
-                <div class="table-scroll">
-                    <table id="group-table">
-                        <thead></thead>
-                        <tbody></tbody>
-                    </table>
+
+                <!-- Tableau Hommes -->
+                <div class="sex-table-section">
+                    <h4>👨 Classement Hommes</h4>
+                    <div class="table-scroll">
+                        <table id="group-table-homme">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tableau Femmes -->
+                <div class="sex-table-section">
+                    <h4>👩 Classement Femmes</h4>
+                    <div class="table-scroll">
+                        <table id="group-table-femme">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>

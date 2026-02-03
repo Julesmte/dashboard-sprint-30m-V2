@@ -399,6 +399,15 @@ main {
     border: 2px solid rgb(30, 144, 255);
 }
 
+.radar-legend .legend-item.sex-average .color-box {
+    background-color: transparent;
+    border: 2px dashed rgba(100, 100, 100, 0.8);
+}
+
+.radar-legend .legend-item.sex-average {
+    display: none;
+}
+
 /* Charts */
 .charts-container {
     display: flex;
@@ -511,6 +520,21 @@ main {
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--primary);
+}
+
+.scale-control.date-control select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    background: white;
+    cursor: pointer;
+    min-width: 120px;
+}
+
+.scale-control.date-control select:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 .chart-container-inner {
@@ -633,11 +657,26 @@ td {
     min-width: 200px;
 }
 
+.group-stats-section {
+    margin-bottom: 1.5rem;
+}
+
+.sex-group-header {
+    margin-bottom: 0.75rem;
+}
+
+.sex-group-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 0;
+}
+
 .group-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1.25rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .stat-card {
@@ -700,6 +739,25 @@ td {
 .group-table-section h3 {
     margin-bottom: 1rem;
     color: var(--dark);
+}
+
+.sex-table-section {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.sex-table-section:first-of-type {
+    margin-top: 1rem;
+    padding-top: 0;
+    border-top: none;
+}
+
+.sex-table-section h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 0.75rem;
 }
 
 .table-header-controls {

@@ -222,11 +222,14 @@ function updateDateScale(chartType) {
         minDate = Math.min(...stats.dates);
     }
 
+    // Marge de 3 jours pour que le dernier point soit bien visible
+    const xPaddingDays = 3 * 24 * 60 * 60 * 1000;
+
     if (endDateStr) {
-        // Ajouter 1 jour pour inclure la date de fin complète
-        maxDate = new Date(endDateStr).getTime() + (24 * 60 * 60 * 1000);
+        // Ajouter la marge pour inclure la date de fin complète
+        maxDate = new Date(endDateStr).getTime() + xPaddingDays;
     } else {
-        maxDate = Math.max(...stats.dates);
+        maxDate = Math.max(...stats.dates) + xPaddingDays;
     }
 
     chart.options.scales.x.min = minDate;
@@ -974,16 +977,24 @@ function getChartOptions(yLabel, stats, dates) {
     const yMax = stats ? stats.mean + 1.5 * stats.std : undefined;
 
     // Calculer les limites X pour afficher toutes les données par défaut
+    // Ajouter une marge de 3 jours à droite pour que le dernier point soit bien visible
+    const xPaddingDays = 3 * 24 * 60 * 60 * 1000; // 3 jours en millisecondes
     let xMin, xMax;
     if (dates && dates.length > 0) {
         const timestamps = dates.map(d => d.getTime());
         xMin = Math.min(...timestamps);
-        xMax = Math.max(...timestamps);
+        xMax = Math.max(...timestamps) + xPaddingDays;
     }
 
     return {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+            padding: {
+                right: 20,
+                left: 10
+            }
+        },
         interaction: {
             intersect: true,
             mode: 'nearest'
@@ -991,13 +1002,13 @@ function getChartOptions(yLabel, stats, dates) {
         plugins: {
             legend: {
                 display: true,
-                position: 'right',
+                position: 'bottom',
                 labels: {
                     usePointStyle: true,
                     font: { size: 11 },
-                    padding: 15,
-                    boxWidth: 15,
-                    boxHeight: 10
+                    padding: 12,
+                    boxWidth: 12,
+                    boxHeight: 8
                 }
             },
             tooltip: {
@@ -1032,12 +1043,18 @@ function getChartOptions(yLabel, stats, dates) {
                 },
                 title: { display: true, text: 'Date' },
                 min: xMin,
-                max: xMax
+                max: xMax,
+                grid: {
+                    display: false
+                }
             },
             y: {
                 title: { display: true, text: yLabel },
                 min: yMin,
-                max: yMax
+                max: yMax,
+                grid: {
+                    display: false
+                }
             }
         }
     };
@@ -1554,15 +1571,18 @@ function updateGroupF0Chart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { right: 20, left: 10 }
+            },
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top',
+                    position: 'bottom',
                     labels: {
                         usePointStyle: true,
                         font: { size: 11 },
-                        padding: 15
+                        padding: 12
                     }
                 },
                 tooltip: {
@@ -1575,12 +1595,14 @@ function updateGroupF0Chart() {
                 x: {
                     type: 'time',
                     time: { unit: 'week', displayFormats: { week: 'dd MMM' } },
-                    title: { display: true, text: 'Date' }
+                    title: { display: true, text: 'Date' },
+                    grid: { display: false }
                 },
                 y: {
                     type: 'linear',
                     display: true,
-                    title: { display: true, text: 'F0 moyen (N/Kg)' }
+                    title: { display: true, text: 'F0 moyen (N/Kg)' },
+                    grid: { display: false }
                 }
             }
         }
@@ -1653,15 +1675,18 @@ function updateGroupV0Chart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { right: 20, left: 10 }
+            },
             interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top',
+                    position: 'bottom',
                     labels: {
                         usePointStyle: true,
                         font: { size: 11 },
-                        padding: 15
+                        padding: 12
                     }
                 },
                 tooltip: {
@@ -1674,12 +1699,14 @@ function updateGroupV0Chart() {
                 x: {
                     type: 'time',
                     time: { unit: 'week', displayFormats: { week: 'dd MMM' } },
-                    title: { display: true, text: 'Date' }
+                    title: { display: true, text: 'Date' },
+                    grid: { display: false }
                 },
                 y: {
                     type: 'linear',
                     display: true,
-                    title: { display: true, text: 'V0 moyen (m/s)' }
+                    title: { display: true, text: 'V0 moyen (m/s)' },
+                    grid: { display: false }
                 }
             }
         }
@@ -1757,12 +1784,12 @@ function updateGroupPowerChart() {
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top',
+                    position: 'bottom',
                     labels: {
                         usePointStyle: true,
                         pointStyle: 'circle',
                         font: { size: 11 },
-                        padding: 15,
+                        padding: 12,
                         generateLabels: (chart) => {
                             const datasets = chart.data.datasets;
                             return datasets.map((dataset, i) => ({
@@ -1790,13 +1817,18 @@ function updateGroupPowerChart() {
                 x: {
                     type: 'time',
                     time: { unit: 'week', displayFormats: { week: 'dd MMM' } },
-                    title: { display: true, text: 'Date' }
+                    title: { display: true, text: 'Date' },
+                    grid: { display: false }
                 },
                 y: {
                     type: 'linear',
                     display: true,
-                    title: { display: true, text: 'Puissance moyenne (W/Kg)' }
+                    title: { display: true, text: 'Puissance moyenne (W/Kg)' },
+                    grid: { display: false }
                 }
+            },
+            layout: {
+                padding: { right: 20, left: 10 }
             }
         }
     });
@@ -1885,12 +1917,12 @@ function updateGroupTimeChart() {
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top',
+                    position: 'bottom',
                     labels: {
                         usePointStyle: true,
                         pointStyle: 'circle',
                         font: { size: 11 },
-                        padding: 15,
+                        padding: 12,
                         generateLabels: (chart) => {
                             const datasets = chart.data.datasets;
                             return datasets.map((dataset, i) => ({
@@ -1918,13 +1950,18 @@ function updateGroupTimeChart() {
                 x: {
                     type: 'time',
                     time: { unit: 'week', displayFormats: { week: 'dd MMM' } },
-                    title: { display: true, text: 'Date' }
+                    title: { display: true, text: 'Date' },
+                    grid: { display: false }
                 },
                 y: {
                     type: 'linear',
                     display: true,
-                    title: { display: true, text: 'Temps moyen (secondes)' }
+                    title: { display: true, text: 'Temps moyen (secondes)' },
+                    grid: { display: false }
                 }
+            },
+            layout: {
+                padding: { right: 20, left: 10 }
             }
         }
     });

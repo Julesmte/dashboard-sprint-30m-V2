@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,6 +22,7 @@
         <button class="nav-btn active" data-page="athlete">Suivi Athlète</button>
         <button class="nav-btn" data-page="groupe">Vue Groupe</button>
         <button class="nav-btn" data-page="exploration">Exploration</button>
+        <button class="nav-btn" data-page="rapport">Rapport</button>
     </nav>
 
     <main>
@@ -506,6 +508,146 @@
                             <span>+1 (positive)</span>
                         </span>
                     </span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Page Rapport -->
+        <section id="page-rapport" class="page">
+            <h2>Génération de Rapport</h2>
+
+            <!-- Contrôles de configuration du rapport -->
+            <div class="rapport-config">
+                <div class="config-row">
+                    <div class="config-group">
+                        <label for="rapport-type">Type de rapport :</label>
+                        <select id="rapport-type">
+                            <option value="individuel">Rapport Individuel</option>
+                            <option value="groupe">Rapport de Groupe</option>
+                        </select>
+                    </div>
+                    <div class="config-group" id="rapport-athlete-group">
+                        <label for="rapport-athlete">Athlète :</label>
+                        <select id="rapport-athlete">
+                            <option value="">Sélectionner un athlète...</option>
+                        </select>
+                    </div>
+                    <div class="config-group" id="rapport-sexe-group" style="display: none;">
+                        <label for="rapport-sexe">Groupe :</label>
+                        <select id="rapport-sexe">
+                            <option value="tous">Tous les athlètes</option>
+                            <option value="H">Hommes uniquement</option>
+                            <option value="F">Femmes uniquement</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="config-row">
+                    <div class="config-group">
+                        <label for="rapport-periode">Période :</label>
+                        <select id="rapport-periode">
+                            <option value="7">Dernière semaine</option>
+                            <option value="30">Dernier mois</option>
+                            <option value="90">Dernier trimestre</option>
+                            <option value="365">Dernière année</option>
+                            <option value="all">Toutes les données</option>
+                        </select>
+                    </div>
+                    <div class="config-group">
+                        <label for="rapport-titre">Titre du rapport :</label>
+                        <input type="text" id="rapport-titre" placeholder="Rapport de suivi biomécanique">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sélection des éléments à inclure -->
+            <div class="rapport-modules">
+                <h3>Éléments à inclure dans le rapport</h3>
+                <div class="modules-grid">
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-resume" checked>
+                        <label for="module-resume">
+                            <span class="module-icon">📊</span>
+                            <span class="module-name">Résumé des valeurs</span>
+                            <span class="module-desc">Dernières valeurs F0, V0, Temps 30m</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-radar" checked>
+                        <label for="module-radar">
+                            <span class="module-icon">🎯</span>
+                            <span class="module-name">Profil Biomécanique</span>
+                            <span class="module-desc">Radar chart comparatif</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-f0" checked>
+                        <label for="module-f0">
+                            <span class="module-icon">💪</span>
+                            <span class="module-name">Évolution F0</span>
+                            <span class="module-desc">Graphique d'évolution de la force</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-v0" checked>
+                        <label for="module-v0">
+                            <span class="module-icon">⚡</span>
+                            <span class="module-name">Évolution V0</span>
+                            <span class="module-desc">Graphique d'évolution de la vitesse</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox" id="module-power-container">
+                        <input type="checkbox" id="module-power">
+                        <label for="module-power">
+                            <span class="module-icon">🔋</span>
+                            <span class="module-name">Évolution Puissance</span>
+                            <span class="module-desc">Graphique d'évolution de P Max</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-tableau" checked>
+                        <label for="module-tableau">
+                            <span class="module-icon">📋</span>
+                            <span class="module-name">Tableau de données</span>
+                            <span class="module-desc">Historique détaillé des tests</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-stats">
+                        <label for="module-stats">
+                            <span class="module-icon">📈</span>
+                            <span class="module-name">Statistiques</span>
+                            <span class="module-desc">Moyennes, écarts-types, tendances</span>
+                        </label>
+                    </div>
+                    <div class="module-checkbox">
+                        <input type="checkbox" id="module-commentaire">
+                        <label for="module-commentaire">
+                            <span class="module-icon">💬</span>
+                            <span class="module-name">Commentaire</span>
+                            <span class="module-desc">Ajouter un commentaire personnalisé</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="commentaire-container" class="commentaire-section" style="display: none;">
+                    <label for="rapport-commentaire">Commentaire :</label>
+                    <textarea id="rapport-commentaire" rows="4" placeholder="Ajoutez vos observations, recommandations..."></textarea>
+                </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="rapport-actions">
+                <button id="btn-preview" class="btn-primary">Prévisualiser le rapport</button>
+                <button id="btn-export-pdf" class="btn-secondary" disabled>Exporter en PDF</button>
+            </div>
+
+            <!-- Zone de prévisualisation -->
+            <div id="rapport-preview-container" class="rapport-preview-container" style="display: none;">
+                <div class="preview-header">
+                    <h3>Aperçu du rapport</h3>
+                    <button id="btn-close-preview" class="btn-close">✕</button>
+                </div>
+                <div id="rapport-preview" class="rapport-preview">
+                    <!-- Le contenu du rapport sera généré ici -->
                 </div>
             </div>
         </section>

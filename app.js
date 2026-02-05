@@ -362,8 +362,17 @@ function setupEventListeners() {
                     updateExplorationView();
                 }, 100);
             }
+            // Update rapport page when switching to it
+            if (btn.dataset.page === 'rapport' && allData.length > 0) {
+                setTimeout(() => {
+                    populateRapportAthleteSelect();
+                }, 100);
+            }
         });
     });
+
+    // Rapport page event listeners
+    setupRapportEventListeners();
 }
 
 // Charger les données depuis Google Sheets
@@ -1133,6 +1142,30 @@ function getAverageValuesBySex(sex) {
     if (latestValues.length === 0) return null;
 
     // Calculer les moyennes
+    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+    return {
+        f0: avg(latestValues.map(v => v.f0)),
+        v0: avg(latestValues.map(v => v.v0)),
+        time30m: avg(latestValues.map(v => v.time30m)),
+        pMax: avg(latestValues.map(v => v.pMax)),
+        drf: avg(latestValues.map(v => v.drf)),
+        rf10m: avg(latestValues.map(v => v.rf10m))
+    };
+}
+
+// Calculer les valeurs moyennes globales (tous les athlètes confondus)
+function getGlobalAverageValues() {
+    if (allData.length === 0) return null;
+
+    // Obtenir les dernières valeurs de chaque athlète
+    const athletes = [...new Set(allData.map(row => row[COLUMNS.NAME].trim()))];
+    const latestValues = athletes
+        .map(name => getLatestAthleteValues(name))
+        .filter(v => v !== null);
+
+    if (latestValues.length === 0) return null;
+
     const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
     return {
@@ -2825,5 +2858,996 @@ function updateTrendWeeks(chartType) {
         // Mettre à jour le dataset de tendance (indice 1)
         chartGroupTime.data.datasets[1].data = trendTimeData;
         chartGroupTime.update();
+    }
+}
+
+// ============================================
+// PAGE RAPPORT - Génération de rapports PDF
+// ============================================
+
+// Variables pour les graphiques du rapport
+let rapportChartRadar = null;
+let rapportChartF0 = null;
+let rapportChartV0 = null;
+let rapportChartPower = null;
+
+// Configuration des event listeners pour la page rapport
+function setupRapportEventListeners() {
+    // Type de rapport (individuel/groupe)
+    const rapportType = document.getElementById('rapport-type');
+    if (rapportType) {
+        rapportType.addEventListener('change', handleRapportTypeChange);
+    }
+
+    // Bouton prévisualiser
+    const btnPreview = document.getElementById('btn-preview');
+    if (btnPreview) {
+        btnPreview.addEventListener('click', generateRapportPreview);
+    }
+
+    // Bouton export PDF
+    const btnExportPdf = document.getElementById('btn-export-pdf');
+    if (btnExportPdf) {
+        btnExportPdf.addEventListener('click', exportRapportPDF);
+    }
+
+    // Bouton fermer preview
+    const btnClosePreview = document.getElementById('btn-close-preview');
+    if (btnClosePreview) {
+        btnClosePreview.addEventListener('click', closeRapportPreview);
+    }
+
+    // Checkbox commentaire
+    const moduleCommentaire = document.getElementById('module-commentaire');
+    if (moduleCommentaire) {
+        moduleCommentaire.addEventListener('change', (e) => {
+            const container = document.getElementById('commentaire-container');
+            container.style.display = e.target.checked ? 'block' : 'none';
+        });
+    }
+}
+
+// Gérer le changement de type de rapport
+function handleRapportTypeChange() {
+    const type = document.getElementById('rapport-type').value;
+    const athleteGroup = document.getElementById('rapport-athlete-group');
+    const sexeGroup = document.getElementById('rapport-sexe-group');
+    const modulePowerContainer = document.getElementById('module-power-container');
+
+    if (type === 'individuel') {
+        athleteGroup.style.display = 'flex';
+        sexeGroup.style.display = 'none';
+        modulePowerContainer.style.display = 'none';
+        document.getElementById('module-power').checked = false;
+    } else {
+        athleteGroup.style.display = 'none';
+        sexeGroup.style.display = 'flex';
+        modulePowerContainer.style.display = 'block';
+    }
+}
+
+// Peupler le sélecteur d'athlètes pour le rapport
+function populateRapportAthleteSelect() {
+    const select = document.getElementById('rapport-athlete');
+    if (!select) return;
+
+    const athletes = [...new Set(allData.map(row => row[COLUMNS.NAME]))].sort();
+
+    select.innerHTML = '<option value="">Sélectionner un athlète...</option>';
+    athletes.forEach(athlete => {
+        const option = document.createElement('option');
+        option.value = athlete;
+        option.textContent = athlete;
+        select.appendChild(option);
+    });
+}
+
+// Filtrer les données selon la période sélectionnée
+function filterDataByPeriod(data, periodDays) {
+    if (periodDays === 'all' || data.length === 0) return data;
+
+    // Trouver la date la plus récente dans les données (pas la date actuelle)
+    const dates = data.map(row => parseDate(row[COLUMNS.DATE])).filter(d => d);
+    if (dates.length === 0) return data;
+
+    const mostRecentDate = new Date(Math.max(...dates));
+    const cutoffDate = new Date(mostRecentDate.getTime() - (parseInt(periodDays) * 24 * 60 * 60 * 1000));
+
+    return data.filter(row => {
+        const rowDate = parseDate(row[COLUMNS.DATE]);
+        return rowDate && rowDate >= cutoffDate;
+    });
+}
+
+// Générer la prévisualisation du rapport
+function generateRapportPreview() {
+    const type = document.getElementById('rapport-type').value;
+    const periode = document.getElementById('rapport-periode').value;
+    const titre = document.getElementById('rapport-titre').value || 'Rapport de suivi biomécanique';
+
+    // Vérifier les sélections
+    if (type === 'individuel') {
+        const athlete = document.getElementById('rapport-athlete').value;
+        if (!athlete) {
+            alert('Veuillez sélectionner un athlète.');
+            return;
+        }
+        generateIndividualReport(athlete, periode, titre);
+    } else {
+        const sexe = document.getElementById('rapport-sexe').value;
+        generateGroupReport(sexe, periode, titre);
+    }
+
+    // Afficher le container de preview et activer le bouton export
+    document.getElementById('rapport-preview-container').style.display = 'block';
+    document.getElementById('btn-export-pdf').disabled = false;
+
+    // Scroll vers la preview
+    document.getElementById('rapport-preview-container').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Générer le rapport individuel
+function generateIndividualReport(athleteName, periode, titre) {
+    const athleteData = allData.filter(row => row[COLUMNS.NAME] === athleteName);
+    const filteredData = filterDataByPeriod(athleteData, periode);
+
+    if (filteredData.length === 0) {
+        alert('Aucune donnée trouvée pour cette période.');
+        return;
+    }
+
+    // Récupérer les modules sélectionnés
+    const modules = {
+        resume: document.getElementById('module-resume').checked,
+        radar: document.getElementById('module-radar').checked,
+        f0: document.getElementById('module-f0').checked,
+        v0: document.getElementById('module-v0').checked,
+        tableau: document.getElementById('module-tableau').checked,
+        stats: document.getElementById('module-stats').checked,
+        commentaire: document.getElementById('module-commentaire').checked
+    };
+
+    // Obtenir le sexe de l'athlète (normaliser: H ou F)
+    const rawSex = filteredData[0][COLUMNS.SEX];
+    const athleteSex = rawSex ? rawSex.toString().trim().toUpperCase().charAt(0) : 'H';
+
+    // Dernières valeurs
+    const sortedData = [...filteredData].sort((a, b) => parseDate(b[COLUMNS.DATE]) - parseDate(a[COLUMNS.DATE]));
+    const latest = sortedData[0];
+
+    // Calculer les variations si on a plus d'une donnée
+    let variationF0 = null, variationV0 = null, variationTime = null;
+    if (sortedData.length > 1) {
+        const previous = sortedData[1];
+        variationF0 = ((parseFloat(latest[COLUMNS.F0_RELATIVE]) - parseFloat(previous[COLUMNS.F0_RELATIVE])) / parseFloat(previous[COLUMNS.F0_RELATIVE]) * 100).toFixed(1);
+        variationV0 = ((parseFloat(latest[COLUMNS.V0]) - parseFloat(previous[COLUMNS.V0])) / parseFloat(previous[COLUMNS.V0]) * 100).toFixed(1);
+        variationTime = ((parseFloat(latest[COLUMNS.TIME_30M]) - parseFloat(previous[COLUMNS.TIME_30M])) / parseFloat(previous[COLUMNS.TIME_30M]) * 100).toFixed(1);
+    }
+
+    // Construire le HTML du rapport
+    let html = `
+        <div class="rapport-content" id="rapport-to-export">
+            <div class="rapport-header">
+                <h1>${titre}</h1>
+                <div class="rapport-subtitle">${athleteName} (${athleteSex === 'H' ? 'Homme' : 'Femme'})</div>
+                <div class="rapport-date">Généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            </div>
+    `;
+
+    // Section Résumé
+    if (modules.resume) {
+        html += `
+            <div class="rapport-section">
+                <h2>Résumé des dernières valeurs</h2>
+                <div class="rapport-cards">
+                    <div class="rapport-card">
+                        <h4>F0 (Force)</h4>
+                        <div class="value">${parseFloat(latest[COLUMNS.F0_RELATIVE]).toFixed(2)}</div>
+                        <div class="unit">N/Kg</div>
+                        ${variationF0 ? `<div class="variation ${parseFloat(variationF0) >= 0 ? 'positive' : 'negative'}">${parseFloat(variationF0) >= 0 ? '+' : ''}${variationF0}%</div>` : ''}
+                    </div>
+                    <div class="rapport-card">
+                        <h4>V0 (Vitesse)</h4>
+                        <div class="value">${parseFloat(latest[COLUMNS.V0]).toFixed(2)}</div>
+                        <div class="unit">m/s</div>
+                        ${variationV0 ? `<div class="variation ${parseFloat(variationV0) >= 0 ? 'positive' : 'negative'}">${parseFloat(variationV0) >= 0 ? '+' : ''}${variationV0}%</div>` : ''}
+                    </div>
+                    <div class="rapport-card">
+                        <h4>Temps 30m</h4>
+                        <div class="value">${parseFloat(latest[COLUMNS.TIME_30M]).toFixed(2)}</div>
+                        <div class="unit">secondes</div>
+                        ${variationTime ? `<div class="variation ${parseFloat(variationTime) <= 0 ? 'positive' : 'negative'}">${parseFloat(variationTime) >= 0 ? '+' : ''}${variationTime}%</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Radar
+    if (modules.radar) {
+        html += `
+            <div class="rapport-section">
+                <h2>Profil Biomécanique</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-radar" width="400" height="300"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section F0
+    if (modules.f0) {
+        html += `
+            <div class="rapport-section">
+                <h2>Évolution de F0 (Force)</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-f0" width="700" height="250"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section V0
+    if (modules.v0) {
+        html += `
+            <div class="rapport-section">
+                <h2>Évolution de V0 (Vitesse)</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-v0" width="700" height="250"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Statistiques
+    if (modules.stats) {
+        const stats = calculateRapportStats(filteredData);
+        html += `
+            <div class="rapport-section">
+                <h2>Statistiques de la période</h2>
+                <div class="rapport-stats">
+                    <div class="rapport-stat-box">
+                        <h4>F0 (N/Kg)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${stats.f0.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${stats.f0.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${stats.f0.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${stats.f0.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>V0 (m/s)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${stats.v0.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${stats.v0.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${stats.v0.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${stats.v0.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>Temps 30m (s)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${stats.time.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${stats.time.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${stats.time.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${stats.time.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>P Max (W/Kg)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${stats.pmax.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${stats.pmax.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${stats.pmax.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${stats.pmax.max.toFixed(2)}</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Tableau
+    if (modules.tableau) {
+        html += `
+            <div class="rapport-section">
+                <h2>Historique des tests</h2>
+                <table class="rapport-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>F0 (N/Kg)</th>
+                            <th>V0 (m/s)</th>
+                            <th>30m (s)</th>
+                            <th>P Max (W/Kg)</th>
+                            <th>DRF</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        sortedData.forEach(row => {
+            html += `
+                        <tr>
+                            <td>${row[COLUMNS.DATE]}</td>
+                            <td>${parseFloat(row[COLUMNS.F0_RELATIVE]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.V0]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.TIME_30M]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.P_MAX_RELATIVE]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.DRF]).toFixed(2)}</td>
+                        </tr>
+            `;
+        });
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Section Commentaire
+    if (modules.commentaire) {
+        const commentaire = document.getElementById('rapport-commentaire').value;
+        if (commentaire) {
+            html += `
+                <div class="rapport-section">
+                    <h2>Commentaires et observations</h2>
+                    <div class="rapport-commentaire">
+                        <p>${commentaire}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Footer
+    html += `
+            <div class="rapport-footer">
+                <p>Dashboard Sprint 30m - Suivi biomécanique hebdomadaire</p>
+                <p>Groupe Épreuves Combinées</p>
+            </div>
+        </div>
+    `;
+
+    // Insérer le HTML
+    document.getElementById('rapport-preview').innerHTML = html;
+
+    // Générer les graphiques après insertion du HTML
+    setTimeout(() => {
+        if (modules.radar) {
+            generateRapportRadarChart(athleteName, athleteSex);
+        }
+        if (modules.f0) {
+            generateRapportLineChart('f0', filteredData, COLUMNS.F0_RELATIVE, 'F0 (N/Kg)');
+        }
+        if (modules.v0) {
+            generateRapportLineChart('v0', filteredData, COLUMNS.V0, 'V0 (m/s)');
+        }
+    }, 100);
+}
+
+// Générer le rapport de groupe
+function generateGroupReport(sexe, periode, titre) {
+    let filteredData = filterDataByPeriod(allData, periode);
+
+    if (sexe !== 'tous') {
+        filteredData = filteredData.filter(row => {
+            const rowSex = row[COLUMNS.SEX];
+            if (!rowSex) return false;
+            const normalizedRowSex = rowSex.toString().trim().toUpperCase().charAt(0);
+            return normalizedRowSex === sexe;
+        });
+    }
+
+    if (filteredData.length === 0) {
+        // Si pas de données avec le filtre sexe, vérifier si c'est un problème de colonne manquante
+        const hasSexColumn = allData.some(row => row[COLUMNS.SEX]);
+        if (!hasSexColumn && sexe !== 'tous') {
+            alert('La colonne "Sexe" n\'est pas présente dans les données. Sélectionnez "Tous les athlètes".');
+        } else {
+            alert('Aucune donnée trouvée pour cette sélection.');
+        }
+        return;
+    }
+
+    // Récupérer les modules sélectionnés
+    const modules = {
+        resume: document.getElementById('module-resume').checked,
+        radar: document.getElementById('module-radar').checked,
+        f0: document.getElementById('module-f0').checked,
+        v0: document.getElementById('module-v0').checked,
+        power: document.getElementById('module-power').checked,
+        tableau: document.getElementById('module-tableau').checked,
+        stats: document.getElementById('module-stats').checked,
+        commentaire: document.getElementById('module-commentaire').checked
+    };
+
+    // Calculer les moyennes du groupe
+    const groupStats = calculateGroupStats(filteredData);
+
+    // Sous-titre selon le sexe
+    let subtitle = 'Tous les athlètes';
+    if (sexe === 'H') subtitle = 'Groupe Hommes';
+    if (sexe === 'F') subtitle = 'Groupe Femmes';
+
+    // Construire le HTML du rapport
+    let html = `
+        <div class="rapport-content" id="rapport-to-export">
+            <div class="rapport-header">
+                <h1>${titre}</h1>
+                <div class="rapport-subtitle">${subtitle}</div>
+                <div class="rapport-date">Généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            </div>
+    `;
+
+    // Section Résumé
+    if (modules.resume) {
+        html += `
+            <div class="rapport-section">
+                <h2>Moyennes du groupe</h2>
+                <div class="rapport-cards">
+                    <div class="rapport-card">
+                        <h4>F0 moyen</h4>
+                        <div class="value">${groupStats.f0.mean.toFixed(2)}</div>
+                        <div class="unit">N/Kg</div>
+                    </div>
+                    <div class="rapport-card">
+                        <h4>V0 moyen</h4>
+                        <div class="value">${groupStats.v0.mean.toFixed(2)}</div>
+                        <div class="unit">m/s</div>
+                    </div>
+                    <div class="rapport-card">
+                        <h4>Temps 30m moyen</h4>
+                        <div class="value">${groupStats.time.mean.toFixed(2)}</div>
+                        <div class="unit">secondes</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section F0 groupe
+    if (modules.f0) {
+        html += `
+            <div class="rapport-section">
+                <h2>Évolution de F0 du groupe</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-f0" width="700" height="250"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section V0 groupe
+    if (modules.v0) {
+        html += `
+            <div class="rapport-section">
+                <h2>Évolution de V0 du groupe</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-v0" width="700" height="250"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Puissance groupe
+    if (modules.power) {
+        html += `
+            <div class="rapport-section">
+                <h2>Évolution de la Puissance du groupe</h2>
+                <div class="rapport-chart">
+                    <canvas id="rapport-chart-power" width="700" height="250"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Statistiques
+    if (modules.stats) {
+        html += `
+            <div class="rapport-section">
+                <h2>Statistiques du groupe</h2>
+                <div class="rapport-stats">
+                    <div class="rapport-stat-box">
+                        <h4>F0 (N/Kg)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${groupStats.f0.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${groupStats.f0.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${groupStats.f0.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${groupStats.f0.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>V0 (m/s)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${groupStats.v0.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${groupStats.v0.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${groupStats.v0.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${groupStats.v0.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>Temps 30m (s)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${groupStats.time.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${groupStats.time.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${groupStats.time.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${groupStats.time.max.toFixed(2)}</span></div>
+                    </div>
+                    <div class="rapport-stat-box">
+                        <h4>P Max (W/Kg)</h4>
+                        <div class="rapport-stat-row"><span class="label">Moyenne</span><span class="value">${groupStats.pmax.mean.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Écart-type</span><span class="value">${groupStats.pmax.std.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Min</span><span class="value">${groupStats.pmax.min.toFixed(2)}</span></div>
+                        <div class="rapport-stat-row"><span class="label">Max</span><span class="value">${groupStats.pmax.max.toFixed(2)}</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Section Tableau - Historique des tests
+    if (modules.tableau) {
+        // Trier les données par date (plus récent en premier)
+        const sortedData = [...filteredData].sort((a, b) => parseDate(b[COLUMNS.DATE]) - parseDate(a[COLUMNS.DATE]));
+
+        html += `
+            <div class="rapport-section">
+                <h2>Historique des tests</h2>
+                <table class="rapport-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Athlète</th>
+                            <th>Sexe</th>
+                            <th>30m (s)</th>
+                            <th>F0 (N/Kg)</th>
+                            <th>V0 (m/s)</th>
+                            <th>P Max (W/Kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        sortedData.forEach((row) => {
+            const dateObj = parseDate(row[COLUMNS.DATE]);
+            const dateStr = dateObj ? dateObj.toLocaleDateString('fr-FR') : row[COLUMNS.DATE];
+            html += `
+                        <tr>
+                            <td>${dateStr}</td>
+                            <td>${row[COLUMNS.NAME]}</td>
+                            <td>${row[COLUMNS.SEX]}</td>
+                            <td>${parseFloat(row[COLUMNS.TIME_30M]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.F0_RELATIVE]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.V0]).toFixed(2)}</td>
+                            <td>${parseFloat(row[COLUMNS.P_MAX_RELATIVE]).toFixed(2)}</td>
+                        </tr>
+            `;
+        });
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Section Commentaire
+    if (modules.commentaire) {
+        const commentaire = document.getElementById('rapport-commentaire').value;
+        if (commentaire) {
+            html += `
+                <div class="rapport-section">
+                    <h2>Commentaires et observations</h2>
+                    <div class="rapport-commentaire">
+                        <p>${commentaire}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Footer
+    html += `
+            <div class="rapport-footer">
+                <p>Dashboard Sprint 30m - Suivi biomécanique hebdomadaire</p>
+                <p>Groupe Épreuves Combinées</p>
+            </div>
+        </div>
+    `;
+
+    // Insérer le HTML
+    document.getElementById('rapport-preview').innerHTML = html;
+
+    // Générer les graphiques après insertion du HTML
+    setTimeout(() => {
+        if (modules.f0) {
+            generateRapportGroupLineChart('f0', filteredData, sexe);
+        }
+        if (modules.v0) {
+            generateRapportGroupLineChart('v0', filteredData, sexe);
+        }
+        if (modules.power) {
+            generateRapportGroupLineChart('power', filteredData, sexe);
+        }
+    }, 100);
+}
+
+// Calculer les statistiques pour le rapport
+function calculateRapportStats(data) {
+    const f0Values = data.map(row => parseFloat(row[COLUMNS.F0_RELATIVE])).filter(v => !isNaN(v));
+    const v0Values = data.map(row => parseFloat(row[COLUMNS.V0])).filter(v => !isNaN(v));
+    const timeValues = data.map(row => parseFloat(row[COLUMNS.TIME_30M])).filter(v => !isNaN(v));
+    const pmaxValues = data.map(row => parseFloat(row[COLUMNS.P_MAX_RELATIVE])).filter(v => !isNaN(v));
+
+    const calcStats = (values) => {
+        if (values.length === 0) return { mean: 0, std: 0, min: 0, max: 0 };
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const std = Math.sqrt(values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / values.length);
+        return {
+            mean,
+            std,
+            min: Math.min(...values),
+            max: Math.max(...values)
+        };
+    };
+
+    return {
+        f0: calcStats(f0Values),
+        v0: calcStats(v0Values),
+        time: calcStats(timeValues),
+        pmax: calcStats(pmaxValues)
+    };
+}
+
+// Calculer les statistiques de groupe
+function calculateGroupStats(data) {
+    return calculateRapportStats(data);
+}
+
+// Générer le radar chart pour le rapport
+function generateRapportRadarChart(athleteName, athleteSex) {
+    const canvas = document.getElementById('rapport-chart-radar');
+    if (!canvas) {
+        console.warn('Canvas rapport-chart-radar non trouvé');
+        return;
+    }
+
+    // Détruire le graphique existant
+    if (rapportChartRadar) {
+        rapportChartRadar.destroy();
+        rapportChartRadar = null;
+    }
+
+    // Obtenir les valeurs de l'athlète
+    const athleteValues = getLatestAthleteValues(athleteName);
+    if (!athleteValues) {
+        console.warn('Pas de valeurs pour l\'athlète:', athleteName);
+        return;
+    }
+
+    // Essayer d'obtenir la moyenne du groupe par sexe, sinon utiliser la moyenne globale
+    let groupAvg = getAverageValuesBySex(athleteSex);
+    if (!groupAvg) {
+        console.warn('Pas de moyenne pour le sexe', athleteSex, '- utilisation moyenne globale');
+        // Calculer la moyenne globale de tous les athlètes
+        groupAvg = getGlobalAverageValues();
+    }
+    if (!groupAvg) {
+        console.warn('Impossible de calculer les moyennes');
+        // Utiliser les valeurs de l'athlète comme référence
+        groupAvg = athleteValues;
+    }
+
+    // Normaliser les valeurs (en pourcentage de la moyenne du groupe)
+    const normalize = (value, groupValue) => {
+        if (!value || !groupValue || groupValue === 0) return 100;
+        return (value / groupValue) * 100;
+    };
+
+    // Pour le temps, inversé car plus petit = meilleur
+    const normalizeTime = (value, groupValue) => {
+        if (!value || !groupValue || value === 0) return 100;
+        return (groupValue / value) * 100;
+    };
+
+    const athleteData = [
+        normalize(athleteValues.f0, groupAvg.f0),
+        normalize(athleteValues.v0, groupAvg.v0),
+        normalizeTime(athleteValues.time30m, groupAvg.time30m),
+        normalize(athleteValues.pMax, groupAvg.pMax),
+        normalize(Math.abs(athleteValues.drf || 0), Math.abs(groupAvg.drf || 1)),
+        normalize(athleteValues.rf10m, groupAvg.rf10m)
+    ];
+
+    // Définir les dimensions du canvas
+    canvas.style.width = '100%';
+    canvas.style.height = '280px';
+
+    try {
+        rapportChartRadar = new Chart(canvas, {
+            type: 'radar',
+            data: {
+                labels: ['F0', 'V0', 'Temps 30m', 'P Max', 'DRF', 'RF 10m'],
+                datasets: [{
+                    label: athleteName,
+                    data: athleteData,
+                    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 2,
+                    pointBackgroundColor: 'rgba(37, 99, 235, 1)'
+                }, {
+                    label: `Moyenne ${athleteSex === 'H' ? 'Hommes' : 'Femmes'}`,
+                    data: [100, 100, 100, 100, 100, 100],
+                    backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                    borderColor: 'rgba(156, 163, 175, 0.5)',
+                    borderWidth: 1,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 10 } }
+                    }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: false,
+                        min: 70,
+                        max: 130,
+                        ticks: { stepSize: 10, font: { size: 9 } }
+                    }
+                }
+            }
+        });
+        console.log('Radar chart généré avec succès');
+    } catch (e) {
+        console.error('Erreur lors de la création du radar chart:', e);
+    }
+}
+
+// Générer un graphique linéaire pour le rapport individuel
+function generateRapportLineChart(chartId, data, column, label) {
+    const canvas = document.getElementById(`rapport-chart-${chartId}`);
+    if (!canvas) return;
+
+    // Détruire le graphique existant
+    if (chartId === 'f0' && rapportChartF0) rapportChartF0.destroy();
+    if (chartId === 'v0' && rapportChartV0) rapportChartV0.destroy();
+
+    // Préparer les données
+    const sortedData = [...data].sort((a, b) => parseDate(a[COLUMNS.DATE]) - parseDate(b[COLUMNS.DATE]));
+    const chartData = sortedData.map(row => ({
+        x: parseDate(row[COLUMNS.DATE]),
+        y: parseFloat(row[column])
+    }));
+
+    const chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: label,
+                data: chartData,
+                borderColor: chartId === 'f0' ? '#2563eb' : '#059669',
+                backgroundColor: chartId === 'f0' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(5, 150, 105, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: chartId === 'f0' ? '#2563eb' : '#059669'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: { day: 'dd/MM' }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    if (chartId === 'f0') rapportChartF0 = chart;
+    if (chartId === 'v0') rapportChartV0 = chart;
+}
+
+// Générer un graphique linéaire pour le rapport de groupe
+function generateRapportGroupLineChart(chartId, data, sexe) {
+    const canvas = document.getElementById(`rapport-chart-${chartId}`);
+    if (!canvas) return;
+
+    // Détruire le graphique existant
+    if (chartId === 'f0' && rapportChartF0) rapportChartF0.destroy();
+    if (chartId === 'v0' && rapportChartV0) rapportChartV0.destroy();
+    if (chartId === 'power' && rapportChartPower) rapportChartPower.destroy();
+
+    // Obtenir la colonne correspondante
+    let column, label, color;
+    if (chartId === 'f0') {
+        column = COLUMNS.F0_RELATIVE;
+        label = 'F0 moyen (N/Kg)';
+        color = '#2563eb';
+    } else if (chartId === 'v0') {
+        column = COLUMNS.V0;
+        label = 'V0 moyen (m/s)';
+        color = '#059669';
+    } else {
+        column = COLUMNS.P_MAX_RELATIVE;
+        label = 'P Max moyen (W/Kg)';
+        color = '#d97706';
+    }
+
+    // Grouper les données par date et calculer la moyenne
+    const dateGroups = {};
+    data.forEach(row => {
+        const date = row[COLUMNS.DATE];
+        if (!dateGroups[date]) {
+            dateGroups[date] = [];
+        }
+        dateGroups[date].push(parseFloat(row[column]));
+    });
+
+    const chartData = Object.entries(dateGroups)
+        .map(([date, values]) => ({
+            x: parseDate(date),
+            y: values.reduce((a, b) => a + b, 0) / values.length
+        }))
+        .sort((a, b) => a.x - b.x);
+
+    const chart = new Chart(canvas, {
+        type: 'line',
+        data: {
+            datasets: [{
+                label: label,
+                data: chartData,
+                borderColor: color,
+                backgroundColor: `${color}20`,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: color
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: { day: 'dd/MM' }
+                    },
+                    grid: { display: false }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    if (chartId === 'f0') rapportChartF0 = chart;
+    if (chartId === 'v0') rapportChartV0 = chart;
+    if (chartId === 'power') rapportChartPower = chart;
+}
+
+// Fermer la prévisualisation
+function closeRapportPreview() {
+    document.getElementById('rapport-preview-container').style.display = 'none';
+    document.getElementById('btn-export-pdf').disabled = true;
+
+    // Détruire les graphiques
+    if (rapportChartRadar) { rapportChartRadar.destroy(); rapportChartRadar = null; }
+    if (rapportChartF0) { rapportChartF0.destroy(); rapportChartF0 = null; }
+    if (rapportChartV0) { rapportChartV0.destroy(); rapportChartV0 = null; }
+    if (rapportChartPower) { rapportChartPower.destroy(); rapportChartPower = null; }
+}
+
+// Exporter le rapport en PDF
+function exportRapportPDF() {
+    const element = document.getElementById('rapport-to-export');
+    if (!element) {
+        alert('Veuillez d\'abord générer une prévisualisation du rapport.');
+        return;
+    }
+
+    const btn = document.getElementById('btn-export-pdf');
+    const originalText = btn.textContent;
+    btn.textContent = 'Génération en cours...';
+    btn.disabled = true;
+
+    // Sauvegarder le scroll actuel
+    const scrollTop = window.scrollY;
+
+    // Scroll vers le haut du rapport pour la capture
+    element.scrollIntoView({ block: 'start' });
+
+    // Convertir temporairement les canvas en images
+    const canvases = element.querySelectorAll('canvas');
+    const canvasParents = [];
+
+    canvases.forEach((canvas) => {
+        try {
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png');
+            img.className = 'pdf-temp-img';
+            img.style.cssText = 'width:100%;height:auto;max-height:300px;display:block;';
+
+            canvasParents.push({
+                parent: canvas.parentNode,
+                canvas: canvas,
+                display: canvas.style.display
+            });
+
+            canvas.style.display = 'none';
+            canvas.parentNode.appendChild(img);
+        } catch (e) {
+            console.warn('Erreur canvas:', e);
+        }
+    });
+
+    // Petite pause pour le rendu
+    setTimeout(() => {
+        const opt = {
+            margin: 10,
+            filename: generateRapportFilename(),
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                scrollY: 0,
+                scrollX: 0
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            }
+        };
+
+        html2pdf().set(opt).from(element).save()
+            .then(() => {
+                cleanup();
+            })
+            .catch(err => {
+                console.error('Erreur PDF:', err);
+                cleanup();
+                alert('Erreur lors de la génération du PDF.');
+            });
+
+        function cleanup() {
+            // Supprimer les images temporaires et restaurer les canvas
+            element.querySelectorAll('.pdf-temp-img').forEach(img => img.remove());
+            canvasParents.forEach(item => {
+                item.canvas.style.display = item.display || '';
+            });
+            // Restaurer le scroll
+            window.scrollTo(0, scrollTop);
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }, 100);
+}
+
+// Générer le nom du fichier PDF
+function generateRapportFilename() {
+    const type = document.getElementById('rapport-type').value;
+    const date = new Date().toISOString().slice(0, 10);
+
+    if (type === 'individuel') {
+        const athlete = document.getElementById('rapport-athlete').value;
+        return `rapport_${athlete.replace(/\s+/g, '_')}_${date}.pdf`;
+    } else {
+        const sexe = document.getElementById('rapport-sexe').value;
+        const groupeName = sexe === 'tous' ? 'groupe' : (sexe === 'H' ? 'hommes' : 'femmes');
+        return `rapport_${groupeName}_${date}.pdf`;
     }
 }

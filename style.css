@@ -1203,3 +1203,552 @@ footer p:first-child {
     border-radius: var(--radius);
     z-index: 1000;
 }
+
+/* ============================================
+   PAGE RAPPORT
+   ============================================ */
+
+/* Configuration du rapport */
+.rapport-config {
+    background: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+}
+
+.config-row {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.config-row:last-child {
+    margin-bottom: 0;
+}
+
+.config-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+}
+
+.config-group label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--dark);
+}
+
+.config-group select,
+.config-group input[type="text"] {
+    padding: 0.6rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    transition: var(--transition);
+    background: var(--white);
+}
+
+.config-group select:focus,
+.config-group input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.config-group input[type="text"] {
+    min-width: 300px;
+}
+
+/* Modules sélectionnables */
+.rapport-modules {
+    background: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+}
+
+.rapport-modules h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--light-secondary);
+}
+
+.modules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.module-checkbox {
+    position: relative;
+}
+
+.module-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.module-checkbox label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    background: var(--light);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.module-checkbox input[type="checkbox"]:checked + label {
+    background: rgba(37, 99, 235, 0.08);
+    border-color: var(--primary);
+}
+
+.module-checkbox label:hover {
+    border-color: var(--primary);
+}
+
+.module-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.module-name {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 0.9rem;
+}
+
+.module-desc {
+    font-size: 0.75rem;
+    color: var(--dark-secondary);
+}
+
+/* Section commentaire */
+.commentaire-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--light-secondary);
+}
+
+.commentaire-section label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+}
+
+.commentaire-section textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: vertical;
+    transition: var(--transition);
+}
+
+.commentaire-section textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Boutons d'action */
+.rapport-actions {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.btn-primary,
+.btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    border: none;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: var(--white);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--primary);
+    color: var(--white);
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Container de prévisualisation */
+.rapport-preview-container {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: var(--dark);
+    color: var(--white);
+}
+
+.preview-header h3 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.btn-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--white);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.btn-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Zone de preview du rapport */
+.rapport-preview {
+    padding: 2rem;
+    background: var(--white);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Styles du rapport PDF */
+.rapport-content {
+    max-width: 800px;
+    margin: 0 auto;
+    font-family: 'Inter', sans-serif;
+}
+
+.rapport-header {
+    text-align: center;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid var(--primary);
+}
+
+.rapport-header h1 {
+    font-size: 1.75rem;
+    color: var(--dark);
+    margin-bottom: 0.5rem;
+}
+
+.rapport-header .rapport-subtitle {
+    color: var(--dark-secondary);
+    font-size: 0.9rem;
+}
+
+.rapport-header .rapport-date {
+    color: var(--dark-secondary);
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.rapport-section {
+    margin-bottom: 2rem;
+    page-break-inside: avoid;
+}
+
+.rapport-section h2 {
+    font-size: 1.1rem;
+    color: var(--dark);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* Cartes résumé dans le rapport */
+.rapport-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.rapport-card {
+    background: var(--light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    text-align: center;
+    border: 1px solid var(--border);
+}
+
+.rapport-card h4 {
+    font-size: 0.75rem;
+    color: var(--dark-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.rapport-card .value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.rapport-card .unit {
+    font-size: 0.75rem;
+    color: var(--dark-secondary);
+}
+
+.rapport-card .variation {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.rapport-card .variation.positive {
+    color: var(--secondary);
+}
+
+.rapport-card .variation.negative {
+    color: var(--accent);
+}
+
+/* Graphiques dans le rapport */
+.rapport-chart {
+    background: var(--light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 1rem;
+    border: 1px solid var(--border);
+    position: relative;
+    min-height: 280px;
+}
+
+.rapport-chart h4 {
+    font-size: 0.9rem;
+    color: var(--dark);
+    margin-bottom: 0.75rem;
+}
+
+.rapport-chart canvas {
+    width: 100% !important;
+    height: 280px !important;
+    max-height: 300px;
+}
+
+.rapport-chart img {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: contain;
+    display: block;
+}
+
+/* Tableau dans le rapport */
+.rapport-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.rapport-table th,
+.rapport-table td {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    border: 1px solid var(--border);
+}
+
+.rapport-table th {
+    background: var(--dark);
+    color: var(--white);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.rapport-table tbody tr:nth-child(even) {
+    background: var(--light);
+}
+
+/* Statistiques dans le rapport */
+.rapport-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.rapport-stat-box {
+    background: var(--light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.rapport-stat-box h4 {
+    font-size: 0.8rem;
+    color: var(--dark);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.rapport-stat-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.3rem 0;
+    font-size: 0.85rem;
+}
+
+.rapport-stat-row .label {
+    color: var(--dark-secondary);
+}
+
+.rapport-stat-row .value {
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* Commentaire dans le rapport */
+.rapport-commentaire {
+    background: var(--light);
+    padding: 1rem;
+    border-radius: var(--radius);
+    border-left: 4px solid var(--primary);
+}
+
+.rapport-commentaire p {
+    color: var(--dark);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Footer du rapport */
+.rapport-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--dark-secondary);
+}
+
+/* Responsive pour la page rapport */
+@media (max-width: 768px) {
+    .config-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .config-group {
+        min-width: 100%;
+    }
+
+    .config-group input[type="text"] {
+        min-width: 100%;
+    }
+
+    .modules-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .rapport-actions {
+        flex-direction: column;
+    }
+
+    .rapport-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .rapport-stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Print styles pour le PDF */
+@media print {
+    .rapport-content {
+        padding: 0;
+    }
+
+    .rapport-section {
+        page-break-inside: avoid;
+    }
+
+    .rapport-chart {
+        page-break-inside: avoid;
+    }
+}
+
+/* Styles spécifiques pour l'export PDF (appliqués via JS au clone) */
+.rapport-content {
+    background: white;
+    color: #1e293b;
+}
+
+.rapport-content * {
+    box-sizing: border-box;
+}
+
+.rapport-chart {
+    overflow: hidden;
+    max-height: 320px;
+}
+
+.rapport-chart canvas,
+.rapport-chart img {
+    max-width: 100%;
+    height: auto !important;
+    max-height: 280px;
+    display: block;
+    margin: 0 auto;
+}
+
+.rapport-table {
+    font-size: 0.8rem;
+}
+
+.rapport-table th,
+.rapport-table td {
+    padding: 0.5rem;
+}

@@ -1,7 +1,20 @@
 /**
- * Dashboard Sprint 30m - Suivi biomécanique hebdomadaire
- * @version 1.0.0
- * @author Claude Code
+ * ============================================================================
+ * DASHBOARD SPRINT 30M - Suivi biomécanique pour athlètes de haut niveau
+ * ============================================================================
+ *
+ * Application web de suivi et d'analyse des performances biomécaniques
+ * pour athlètes de sports combinés (décathlon, heptathlon).
+ *
+ * Fonctionnalités principales:
+ * - Suivi individuel avec graphiques d'évolution (F0, V0, temps)
+ * - Analyse comparative de groupe avec statistiques
+ * - Exploration des données avec corrélations et analyse par quadrants
+ * - Génération de rapports PDF personnalisés
+ *
+ * @version 2.0.0
+ * @license MIT
+ * @see https://github.com/Julesmte/dashboard-sprint-30m-V2
  */
 
 // ==================== CONFIGURATION ====================
@@ -2179,57 +2192,52 @@ function calculatePearsonCorrelation(x, y) {
     return { r, r2, pValue };
 }
 
-// Approximation de la p-value pour un test t (two-tailed)
+// Calcul de la p-value pour un test t bilatéral (two-tailed)
 function calculateTTestPValue(t, df) {
-    // Approximation using the regularized incomplete beta function
-    if (df <= 0) return 1;
-
-    const x = df / (df + t * t);
-    // Simplified approximation for p-value
+    // Validation des paramètres
+    if (df <= 0 || !isFinite(t)) return 1;
     if (t === 0) return 1;
 
-    // Use normal approximation for large df
+    // x est le paramètre pour la fonction bêta incomplète
+    const x = df / (df + t * t);
+
+    // Pour grands degrés de liberté (df > 100), utiliser l'approximation normale
     if (df > 100) {
-        const z = t;
-        const p = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
-        return Math.min(1, 2 * p * Math.sqrt(df));
+        // Approximation normale avec correction de continuité
+        const z = Math.abs(t);
+        // Formule de la CDF normale standard (approximation)
+        const p = 0.5 * (1 + erf(z / Math.sqrt(2)));
+        return Math.max(0, Math.min(1, 2 * (1 - p)));
     }
 
-    // Simplified approximation for smaller df
+    // Pour la distribution t de Student:
+    // P-value (two-tailed) = I_x(df/2, 1/2)
+    // où x = df / (df + t²)
     const a = df / 2;
     const b = 0.5;
-    let result = Math.pow(x, a) * Math.pow(1 - x, b);
-    result = result / (a * betaFunction(a, b));
 
-    return Math.min(1, 2 * (1 - incompleteBeta(x, a, b)));
+    return Math.max(0, Math.min(1, incompleteBeta(x, a, b)));
 }
 
-// Fonction Beta (approximation)
-function betaFunction(a, b) {
-    return (gammaFunction(a) * gammaFunction(b)) / gammaFunction(a + b);
+// Fonction d'erreur (erf) - approximation de Horner
+function erf(x) {
+    const sign = x >= 0 ? 1 : -1;
+    x = Math.abs(x);
+
+    const a1 =  0.254829592;
+    const a2 = -0.284496736;
+    const a3 =  1.421413741;
+    const a4 = -1.453152027;
+    const a5 =  1.061405429;
+    const p  =  0.3275911;
+
+    const t = 1.0 / (1.0 + p * x);
+    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+    return sign * y;
 }
 
-// Approximation de la fonction Gamma (Stirling)
-function gammaFunction(z) {
-    if (z < 0.5) {
-        return Math.PI / (Math.sin(Math.PI * z) * gammaFunction(1 - z));
-    }
-    z -= 1;
-    const g = 7;
-    const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-        771.32342877765313, -176.61502916214059, 12.507343278686905,
-        -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
-
-    let x = c[0];
-    for (let i = 1; i < g + 2; i++) {
-        x += c[i] / (z + i);
-    }
-
-    const t = z + g + 0.5;
-    return Math.sqrt(2 * Math.PI) * Math.pow(t, z + 0.5) * Math.exp(-t) * x;
-}
-
-// Approximation de l'intégrale bêta incomplète
+// Approximation de l'intégrale bêta incomplète régularisée
 function incompleteBeta(x, a, b) {
     if (x === 0) return 0;
     if (x === 1) return 1;
